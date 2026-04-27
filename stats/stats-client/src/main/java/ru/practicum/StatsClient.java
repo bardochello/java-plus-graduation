@@ -76,9 +76,9 @@ public class StatsClient {
      */
     public List<ViewStatsDto> getStats(String start, String end, List<String> uris, Boolean unique) {
         StringBuilder url = new StringBuilder("/stats?start=")
-                .append(start)
+                .append(start.replace(" ", "%20"))
                 .append("&end=")
-                .append(end);
+                .append(end.replace(" ", "%20"));
 
         if (uris != null && !uris.isEmpty()) {
             uris.forEach(uri -> url.append("&uris=").append(uri));
