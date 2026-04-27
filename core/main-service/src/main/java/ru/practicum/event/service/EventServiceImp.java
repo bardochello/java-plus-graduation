@@ -268,17 +268,22 @@ public class EventServiceImp implements EventService {
                 .map(Event::getCreatedOn)
                 .min(LocalDateTime::compareTo);
 
-        // === ИСПРАВЛЕНИЕ ЗДЕСЬ ===
         String startStr = start.orElse(LocalDateTime.now().minusYears(1))
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
         String endStr = LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
-        Map<String, Long> statsCount = statsClient
-                .getStats(startStr, endStr, listUrl, true)
-                .stream()
-                .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
+        Map<String, Long> statsCountTemp;
+        try {
+            statsCountTemp = statsClient
+                    .getStats(startStr, endStr, listUrl, true)
+                    .stream()
+                    .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
+        } catch (Exception e) {
+            statsCountTemp = Map.of();
+        }
+        final Map<String, Long> statsCount = statsCountTemp;
 
         return eventMap.values().stream()
                 .map(event -> {
@@ -345,17 +350,21 @@ public class EventServiceImp implements EventService {
     }
 
     private Long getViewsForEvent(LocalDateTime start, Long eventId) {
-        String startStr = start.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String endStr = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        try {
+            String startStr = start.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            String endStr = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
-        List<ViewStatsDto> listStats = statsClient.getStats(
-                startStr,
-                endStr,
-                List.of(EVENT_URI_PATTERN.formatted(eventId)),
-                true
-        );
+            List<ViewStatsDto> listStats = statsClient.getStats(
+                    startStr,
+                    endStr,
+                    List.of(EVENT_URI_PATTERN.formatted(eventId)),
+                    true
+            );
 
-        return listStats.isEmpty() ? 0L : listStats.getFirst().getHits();
+            return listStats.isEmpty() ? 0L : listStats.getFirst().getHits();
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     private void checkUpdateEventAdmin(Event event, UpdateEventAdminRequest updateEvent) {
@@ -412,10 +421,16 @@ public class EventServiceImp implements EventService {
         String endStr = LocalDateTime.now().plusMinutes(1)
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
-        Map<String, Long> statsCount = statsClient
-                .getStats(startStr, endStr, listUrl, true)
-                .stream()
-                .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
+        Map<String, Long> statsCountTemp;
+        try {
+            statsCountTemp = statsClient
+                    .getStats(startStr, endStr, listUrl, true)
+                    .stream()
+                    .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
+        } catch (Exception e) {
+            statsCountTemp = Map.of();
+        }
+        final Map<String, Long> statsCount = statsCountTemp;
 
         return eventMap.values().stream()
                 .map(event -> {
