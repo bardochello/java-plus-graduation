@@ -4,7 +4,7 @@ server:
 spring:
   datasource:
     driverClassName: org.postgresql.Driver
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:9032/stats}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stats}
     username: ${SPRING_DATASOURCE_USERNAME:stats}
     password: ${SPRING_DATASOURCE_PASSWORD:stats}
   sql:
