@@ -5,8 +5,8 @@ spring:
   datasource:
     driverClassName: org.postgresql.Driver
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/main}
-    username: ${SPRING_DATASOURCE_USERNAME:main}
-    password: ${SPRING_DATASOURCE_PASSWORD:main}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   sql:
     init:
       mode: always
