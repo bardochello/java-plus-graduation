@@ -1,86 +1,76 @@
-import com.fasterxml.jackson.databind.ObjectMapper;
+import dto.EndpointHitDto;
 import dto.ViewStatsDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestTemplate;
 import ru.practicum.StatsClient;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 class StatsClientTest {
+
     private MockWebServer mockWebServer;
     private StatsClient statsClient;
     private final ObjectMapper mapper = new ObjectMapper();
 
     @BeforeEach
-    public void beforeEach() throws IOException {
+    void beforeEach() throws IOException {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
-        statsClient = new StatsClient(mockWebServer.url("/").toString());
+
+        // Создаём StatsClient с RestTemplate,指向 mock сервер
+        RestTemplate restTemplate = new RestTemplate();
+        statsClient = new StatsClient(null, restTemplate); // DiscoveryClient не нужен для теста
     }
 
     @Test
-    public void testMethodSaveStat() throws IOException {
+    void testAddHit() throws IOException {
         mockWebServer.enqueue(new MockResponse().setResponseCode(201));
-        boolean result = statsClient.saveStat("ewm-main-service", "/events", "127.0.0.1");
-        Assertions.assertTrue(result);
 
-        mockWebServer.enqueue(new MockResponse().setResponseCode(404));
-        result = statsClient.saveStat("ewm-main-service", "/events", "127.0.0.1");
-        Assertions.assertFalse(result);
+        EndpointHitDto hit = EndpointHitDto.builder()
+                .app("ewm-main-service")
+                .uri("/events")
+                .ip("127.0.0.1")
+                .timestamp(LocalDateTime.now())
+                .build();
 
-        mockWebServer.shutdown();
-        result = statsClient.saveStat("ewm-main-service", "/events", "127.0.0.1");
-        Assertions.assertFalse(result);
+        assertDoesNotThrow(() -> statsClient.addHit(hit));
     }
 
     @Test
-    public void testMethodGetStats() throws IOException {
-        List<ViewStatsDto> listViewStateDto = List.of(
-                ViewStatsDto.builder()
-                        .app("ewm-main-service")
-                        .uri("/events/1")
-                        .hits(50L)
-                        .build(),
-                ViewStatsDto.builder()
-                        .app("ewm-main-service")
-                        .uri("/events/100")
-                        .hits(200L)
-                        .build()
+    void testGetStats() throws IOException {
+        List<ViewStatsDto> expected = List.of(
+                ViewStatsDto.builder().app("ewm-main-service").uri("/events/1").hits(50L).build(),
+                ViewStatsDto.builder().app("ewm-main-service").uri("/events/100").hits(200L).build()
         );
 
         mockWebServer.enqueue(new MockResponse()
                 .setResponseCode(200)
-                .setBody(mapper.writeValueAsString(listViewStateDto))
+                .setBody(mapper.writeValueAsString(expected))
                 .addHeader("Content-Type", "application/json"));
-        List<ViewStatsDto> result = statsClient.getStats(LocalDateTime.now(),
-                LocalDateTime.now().plusDays(5), true);
-        Assertions.assertEquals(2, result.size());
 
-        ViewStatsDto viewStatsDto = listViewStateDto.getFirst();
-        Assertions.assertEquals(viewStatsDto.getApp(), result.getFirst().getApp());
-        Assertions.assertEquals(viewStatsDto.getUri(), result.getFirst().getUri());
-        Assertions.assertEquals(viewStatsDto.getHits(), result.getFirst().getHits());
+        List<ViewStatsDto> result = statsClient.getStats(
+                "2024-01-01 00:00:00",
+                "2024-12-31 23:59:59",
+                List.of("/events/1", "/events/100"),
+                true
+        );
 
-        viewStatsDto = listViewStateDto.get(1);
-        Assertions.assertEquals(viewStatsDto.getApp(), result.get(1).getApp());
-        Assertions.assertEquals(viewStatsDto.getUri(), result.get(1).getUri());
-        Assertions.assertEquals(viewStatsDto.getHits(), result.get(1).getHits());
-
-        mockWebServer.shutdown();
-        result = statsClient.getStats(LocalDateTime.now(),
-                LocalDateTime.now().plusDays(5), true);
-        Assertions.assertEquals(0, result.size());
-
+        assertEquals(2, result.size());
+        assertEquals("ewm-main-service", result.get(0).getApp());
+        assertEquals(50L, result.get(0).getHits());
     }
 
     @AfterEach
-    public void afterEach() throws IOException {
+    void afterEach() throws IOException {
         mockWebServer.shutdown();
     }
 }

@@ -2,128 +2,99 @@ package ru.practicum;
 
 import dto.EndpointHitDto;
 import dto.ViewStatsDto;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpStatus;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import static org.springframework.http.MediaType.APPLICATION_JSON;
-
-@Slf4j
+/**
+ * Клиент статистики через Eureka + RestTemplate.
+ * Сервис обнаруживается через DiscoveryClient (Eureka).
+ */
 @Component
 public class StatsClient {
-    private final RestClient restClient;
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    public StatsClient(@Value("${stats-client.url:http://localhost:9090}") String uriBase) {
-        this.restClient = RestClient.builder()
-                .baseUrl(uriBase)
-                .build();
+    private final DiscoveryClient discoveryClient;
+    private final RestTemplate restTemplate;
+
+    @Value("${stats.server.id:stats-server}")
+    private String statsServiceId;
+
+    public StatsClient(DiscoveryClient discoveryClient, RestTemplate restTemplate) {
+        this.discoveryClient = discoveryClient;
+        this.restTemplate = restTemplate;
     }
 
     /**
-     * Сохраняет информацию о запросе к эндпоинту.
-     *
-     * @param app название сервиса
-     * @param uri URI эндпоинта
-     * @param ip  IP адрес пользователя
-     * @return true если информация успешно сохранена, false в противном случае
+     * Получаем экземпляр stats-server из Eureka с повторными попытками.
+     * Метод публичный, так как @Retryable работает только с публичными методами через прокси.
      */
-    public boolean saveStat(String app, String uri, String ip) {
-        if (app == null || app.isBlank()
-                || uri == null || uri.isBlank()
-                || ip == null || ip.isBlank()) {
-            log.error("Некорректные входные параметры: app - {}, uri - {}, api - {}", app, uri, ip);
-            return false;
+    @Retryable(maxAttempts = 5, backoff = @Backoff(delay = 2000, multiplier = 1.5))
+    public ServiceInstance getInstance() {
+        List<ServiceInstance> instances = discoveryClient.getInstances(statsServiceId);
+        if (instances == null || instances.isEmpty()) {
+            throw new RuntimeException(
+                    "Экземпляр stats-server не найден в Eureka: " + statsServiceId
+            );
         }
+        return instances.get(0);
+    }
 
-        EndpointHitDto endpointHit = EndpointHitDto.builder()
-                .app(app)
-                .uri(uri)
-                .ip(ip)
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        try {
-            ResponseEntity<Void> response = restClient.post()
-                    .uri("/hit")
-                    .contentType(APPLICATION_JSON)
-                    .body(endpointHit)
-                    .retrieve()
-                    .toBodilessEntity();
-            return response.getStatusCode() == HttpStatus.CREATED;
-        } catch (ResourceAccessException ex) {
-            log.error("Сервер не доступен");
-            return false;
-        } catch (RestClientException ex) {
-            log.error(ex.getMessage());
-            return false;
-        }
+    private URI makeUri(String path) {
+        ServiceInstance instance = getInstance();
+        return URI.create("http://" + instance.getHost() + ":" + instance.getPort() + path);
     }
 
     /**
-     * Получает статистику просмотров за указанный период.
+     * Отправка информации о просмотре (hit).
      *
-     * @param start  начало периода
-     * @param end    конец периода
-     * @param unique учитывать только уникальные посещения
+     * @param endpointHitDto данные о просмотре
+     */
+    public void addHit(EndpointHitDto endpointHitDto) {
+        restTemplate.postForEntity(makeUri("/hit"), endpointHitDto, Void.class);
+    }
+
+    /**
+     * Получение статистики просмотров.
+     *
+     * @param start  начало периода (формат yyyy-MM-dd HH:mm:ss)
+     * @param end    конец периода (формат yyyy-MM-dd HH:mm:ss)
+     * @param uris   список URI для фильтрации (может быть null)
+     * @param unique учитывать только уникальные IP
      * @return список статистики просмотров
      */
-    public List<ViewStatsDto> getStats(LocalDateTime start, LocalDateTime end, boolean unique) {
-        return getStats(start, end, null, unique);
-    }
+    public List<ViewStatsDto> getStats(String start, String end, List<String> uris, Boolean unique) {
+        StringBuilder url = new StringBuilder("/stats?start=")
+                .append(start)
+                .append("&end=")
+                .append(end);
 
-    /**
-     * Получает статистику просмотров за указанный период для конкретных URI.
-     *
-     * @param start  начало периода
-     * @param end    конец периода
-     * @param uris   список URI для фильтрации
-     * @param unique учитывать только уникальные посещения
-     * @return список статистики просмотров
-     */
-    public List<ViewStatsDto> getStats(LocalDateTime start, LocalDateTime end, List<String> uris, boolean unique) {
-        if (start == null || end == null || end.isBefore(start)) {
-            log.error("Дата окнчания раньше даты начала");
-            return List.of();
+        if (uris != null && !uris.isEmpty()) {
+            uris.forEach(uri -> url.append("&uris=").append(uri));
+        }
+        if (unique != null) {
+            url.append("&unique=").append(unique);
         }
 
-        log.info("Запрашиваем статистику : start - %s, end - %s, uris - %s, unique - %b"
-                .formatted(start.format(DATE_TIME_FORMATTER), end.format(DATE_TIME_FORMATTER), uris, unique));
+        ResponseEntity<ViewStatsDto[]> response = restTemplate.exchange(
+                makeUri(url.toString()),
+                HttpMethod.GET,
+                HttpEntity.EMPTY,
+                ViewStatsDto[].class
+        );
 
-        try {
-            List<ViewStatsDto> views = restClient.get()
-                    //.uri("/stats", uriVariables)
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/stats")  //
-                            .queryParam("start", start.format(DATE_TIME_FORMATTER))
-                            .queryParam("end", end.format(DATE_TIME_FORMATTER))
-                            .queryParam("unique", unique)
-                            .queryParam("uris", uris != null ? String.join(",", uris) : "")
-                            .build()
-                    )
-                    .header("Content-Type", "application/json")
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<ViewStatsDto>>() {
-                    });
-
-            log.info("Результат - %s".formatted(views.toString()));
-            return views;
-        } catch (ResourceAccessException ex) {
-            log.error("Сервер не доступен");
-            return List.of();
-        } catch (RestClientException ex) {
-            log.error(ex.getMessage());
-            return List.of();
-        }
+        ViewStatsDto[] body = response.getBody();
+        return body != null ? Arrays.asList(body) : Collections.emptyList();
     }
 }
