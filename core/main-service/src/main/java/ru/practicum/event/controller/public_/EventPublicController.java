@@ -74,8 +74,6 @@ public class EventPublicController {
     public EventFullDto getEvent(@PathVariable @Positive long id,
                                  HttpServletRequest request) {
 
-        EventFullDto eventFullDto = eventService.getEventByPublic(id);
-
         try {
             statsClient.addHit(EndpointHitDto.builder()
                     .app(APPLICATION)
@@ -86,6 +84,6 @@ public class EventPublicController {
         } catch (Exception ignored) {
         }
 
-        return eventFullDto;
+        return eventService.getEventByPublic(id);
     }
 }
