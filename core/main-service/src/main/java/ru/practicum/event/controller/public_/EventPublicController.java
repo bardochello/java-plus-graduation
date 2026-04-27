@@ -16,8 +16,6 @@ import ru.practicum.event.utill.EventGetPublicParam;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Публичный контроллер для операций с событиями.
@@ -31,7 +29,6 @@ public class EventPublicController {
     private static final String APPLICATION = "main-service";
     private final EventService eventService;
     private final StatsClient statsClient;
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     @GetMapping
     public List<EventShortDto> getEvents(
@@ -79,15 +76,15 @@ public class EventPublicController {
 
         EventFullDto eventFullDto = eventService.getEventByPublic(id);
 
-        // Асинхронно отправляем статистику
-        executorService.execute(() ->
-                statsClient.addHit(EndpointHitDto.builder()
-                        .app(APPLICATION)
-                        .uri(request.getRequestURI())
-                        .ip(request.getRemoteAddr())
-                        .timestamp(LocalDateTime.now())
-                        .build())
-        );
+        try {
+            statsClient.addHit(EndpointHitDto.builder()
+                    .app(APPLICATION)
+                    .uri(request.getRequestURI())
+                    .ip(request.getRemoteAddr())
+                    .timestamp(LocalDateTime.now())
+                    .build());
+        } catch (Exception ignored) {
+        }
 
         return eventFullDto;
     }
