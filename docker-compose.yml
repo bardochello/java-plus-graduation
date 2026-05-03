@@ -1,14 +1,136 @@
+version: '3.8'
+
 services:
-  stats-server:
+  discovery-server:
+    build:
+      context: .
+      dockerfile: infra/discovery-server/Dockerfile
+    container_name: discovery-server
+    restart: always
     ports:
-      - "9090:9090"
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  stats-db:
-    image: postgres:16.1
+  config-server:
+    build:
+      context: .
+      dockerfile: infra/config-server/Dockerfile
+    container_name: config-server
+    restart: always
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  ewm-service:
+  gateway-server:
+    build:
+      context: .
+      dockerfile: infra/gateway-server/Dockerfile
+    container_name: gateway-server
+    restart: always
     ports:
       - "8080:8080"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  stats-db:
+    image: postgres:16-alpine
+    container_name: stats-db
+    restart: always
+    ports:
+      - "9032:5432"
+    environment:
+      POSTGRES_DB: stats
+      POSTGRES_USER: stats
+      POSTGRES_PASSWORD: stats
+    volumes:
+      - stats-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stats -d stats"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   ewm-db:
-    image: postgres:16.1
+    image: postgres:16-alpine
+    container_name: ewm-db
+    restart: always
+    ports:
+      - "8032:5432"
+    environment:
+      POSTGRES_DB: main
+      POSTGRES_USER: main
+      POSTGRES_PASSWORD: main
+    volumes:
+      - ewm-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U main -d main"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  stats-server:
+    build:
+      context: .
+      dockerfile: stats/stats-server/Dockerfile
+    container_name: stats-server
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
+      SPRING_DATASOURCE_USERNAME: stats
+      SPRING_DATASOURCE_PASSWORD: stats
+    depends_on:
+      stats-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  main-service:
+    build:
+      context: .
+      dockerfile: core/main-service/Dockerfile
+    container_name: main-service
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main
+      SPRING_DATASOURCE_USERNAME: main
+      SPRING_DATASOURCE_PASSWORD: main
+    depends_on:
+      ewm-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      stats-server:
+        condition: service_started
+
+volumes:
+  stats-data:
+  ewm-data:
