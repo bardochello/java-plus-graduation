@@ -2,9 +2,8 @@ package ru.practicum.request.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import ru.practicum.event.model.Event;
+import org.hibernate.Hibernate;
 import ru.practicum.request.utill.Status;
-import ru.practicum.user.model.User;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -20,6 +19,7 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Request {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -27,13 +27,11 @@ public class Request {
     @Column(name = "created", nullable = false)
     private LocalDateTime created;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "event_id", nullable = false)
-    private Event event;
+    @Column(name = "event_id", nullable = false)
+    private Long eventId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "requester_id", nullable = false)
-    private User requester;
+    @Column(name = "requester_id", nullable = false)
+    private Long requesterId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -41,12 +39,15 @@ public class Request {
 
     @PrePersist
     protected void onCreate() {
-        created = LocalDateTime.now();
+        if (created == null) {
+            created = LocalDateTime.now();
+        }
     }
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
         Request request = (Request) o;
         return Objects.equals(id, request.id);
     }

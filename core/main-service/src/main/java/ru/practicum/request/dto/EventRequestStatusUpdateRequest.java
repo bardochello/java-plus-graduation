@@ -1,4 +1,4 @@
-package ru.practicum.event.dto;
+package ru.practicum.request.dto;
 
 import lombok.*;
 import ru.practicum.request.utill.Status;
@@ -6,7 +6,7 @@ import ru.practicum.request.utill.Status;
 import java.util.List;
 
 /**
- * DTO для обновления статусов запросов на участие.
+ * DTO для запроса обновления статусов заявок (используется в Feign-клиенте).
  */
 @Getter
 @Setter

@@ -1,17 +1,15 @@
-package ru.practicum.event.dto;
+package ru.practicum.request.dto;
 
 import lombok.*;
-import ru.practicum.request.dto.ParticipationRequestDto;
 
 import java.util.List;
 
 /**
- * DTO для результата обновления статусов запросов.
+ * DTO для результата обновления статусов заявок (используется в Feign-клиенте).
  */
 @Getter
 @Setter
 @Builder
-@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 public class EventRequestStatusUpdateResult {

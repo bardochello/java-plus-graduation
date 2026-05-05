@@ -89,6 +89,24 @@ services:
       timeout: 5s
       retries: 5
 
+  request-db:
+    image: postgres:16-alpine
+    container_name: request-db
+    restart: always
+    ports:
+      - "8033:5432"
+    environment:
+      POSTGRES_DB: requests
+      POSTGRES_USER: requests
+      POSTGRES_PASSWORD: requests
+    volumes:
+      - request-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U requests -d requests"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   stats-server:
     build:
       context: .
@@ -131,6 +149,29 @@ services:
       stats-server:
         condition: service_started
 
+  request-service:
+    build:
+      context: .
+      dockerfile: core/request-service/Dockerfile
+    container_name: request-service
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://request-db:5432/requests
+      SPRING_DATASOURCE_USERNAME: requests
+      SPRING_DATASOURCE_PASSWORD: requests
+    depends_on:
+      request-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      main-service:
+        condition: service_started
+
 volumes:
   stats-data:
   ewm-data:
+  request-data:

@@ -6,13 +6,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.request.dto.ParticipationRequestDto;
-import ru.practicum.request.feign.RequestServiceClient;
+import ru.practicum.request.service.RequestService;
 
 import java.util.List;
 
 /**
  * Контроллер для операций с заявками на участие в событиях.
- * Делегирует запросы в request-service через Feign-клиент.
  */
 @Validated
 @RestController
@@ -20,23 +19,23 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RequestController {
 
-    private final RequestServiceClient requestServiceClient;
+    private final RequestService requestService;
 
     @GetMapping
     public List<ParticipationRequestDto> getRequests(@PathVariable @Positive Long userId) {
-        return requestServiceClient.getRequestsByUserId(userId);
+        return requestService.getRequestsByUserId(userId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ParticipationRequestDto createRequest(@PathVariable @Positive Long userId,
                                                  @RequestParam @Positive Long eventId) {
-        return requestServiceClient.createRequest(userId, eventId);
+        return requestService.createRequest(userId, eventId);
     }
 
     @PatchMapping("/{requestId}/cancel")
     public ParticipationRequestDto cancelRequest(@PathVariable @Positive Long userId,
                                                  @PathVariable @Positive Long requestId) {
-        return requestServiceClient.cancelRequest(userId, requestId);
+        return requestService.cancelRequest(userId, requestId);
     }
 }

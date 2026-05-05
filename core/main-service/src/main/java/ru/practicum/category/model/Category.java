@@ -2,6 +2,7 @@ package ru.practicum.category.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.Hibernate;
 
 /**
  * Сущность категории.
@@ -23,7 +24,8 @@ public class Category {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
         Category category = (Category) o;
         return id == category.id;
     }
