@@ -1,16 +1,16 @@
 package ru.practicum.user.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import ru.practicum.exception.ConflictResource;
 import ru.practicum.exception.NotFoundResource;
 import ru.practicum.user.dto.NewUserRequest;
 import ru.practicum.user.dto.UserDto;
+import ru.practicum.user.feign.UserServiceClient;
 import ru.practicum.user.mapper.UserMapper;
 import ru.practicum.user.model.User;
 import ru.practicum.user.repository.UserRepository;
@@ -19,22 +19,19 @@ import ru.practicum.user.utill.UserGetParam;
 import java.util.List;
 
 /**
- * Реализация сервиса для работы с пользователями.
- * <p>
- * Обеспечивает бизнес-логику управления пользователями.
+ * Реализация сервиса для работы с пользователями в main-service.
+ * Администрирование пользователей вынесено в user-service.
+ * Данный сервис обеспечивает доступ к локальному кэшу пользователей
+ * (необходим для FK в таблице events) и получение данных через Feign из user-service.
  */
+@Slf4j
 @RequiredArgsConstructor
 @Service
 @Transactional(readOnly = true)
 public class UserServiceImp implements UserService {
     private final UserRepository userRepository;
+    private final UserServiceClient userServiceClient;
 
-    /**
-     * Получает перечень пользователей с учетом параметров фильтрации и пагинации.
-     *
-     * @param userGetParam параметры запроса (фильтрация и пагинация)
-     * @return список DTO пользователей
-     */
     @Override
     public List<UserDto> getUsers(UserGetParam userGetParam) {
         List<User> users;
@@ -53,24 +50,29 @@ public class UserServiceImp implements UserService {
 
     /**
      * Получает пользователя по идентификатору.
+     * Сначала ищет в локальном кэше main-service.
+     * Если не найден — запрашивает у user-service через Feign и кэширует через upsert.
      *
      * @param userId идентификатор пользователя
      * @return сущность пользователя
-     * @throws NotFoundResource если пользователь не найден
+     * @throws NotFoundResource если пользователь не найден ни в кэше, ни в user-service
      */
     @Override
+    @Transactional
     public User getUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundResource("Пользователь с id=" + userId + " не найден"));
+        return userRepository.findById(userId).orElseGet(() -> {
+            log.info("Пользователь {} не найден в локальном кэше, запрашиваем у user-service", userId);
+            UserDto userDto = userServiceClient.getUserById(userId);
+            if (userDto == null) {
+                throw new NotFoundResource("Пользователь с id=" + userId + " не найден");
+            }
+            // upsert: INSERT ... ON CONFLICT DO UPDATE — безопасно при параллельных запросах
+            userRepository.upsertUser(userDto.getId(), userDto.getName(), userDto.getEmail());
+            return userRepository.findById(userId)
+                    .orElseThrow(() -> new NotFoundResource("Пользователь с id=" + userId + " не найден после синхронизации"));
+        });
     }
 
-    /**
-     * Создает нового пользователя.
-     *
-     * @param newUserRequest данные для создания пользователя
-     * @return DTO созданного пользователя
-     * @throws ConflictResource если пользователь с таким email уже существует
-     */
     @Override
     @Transactional
     public UserDto createUser(NewUserRequest newUserRequest) {
@@ -85,20 +87,12 @@ public class UserServiceImp implements UserService {
         return UserMapper.mapToDto(savedUser);
     }
 
-    /**
-     * Удаляет пользователя по идентификатору.
-     *
-     * @param userId идентификатор пользователя
-     * @throws NotFoundResource если пользователь не найден
-     */
     @Override
     @Transactional
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new NotFoundResource("Пользователь с id=" + userId + " не найден");
         }
-
         userRepository.deleteById(userId);
     }
 }

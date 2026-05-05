@@ -1,7 +1,5 @@
 package ru.practicum.user.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -10,6 +8,7 @@ import lombok.Setter;
 
 /**
  * DTO для представления данных пользователя.
+ * Используется при межсервисном взаимодействии и в публичном API.
  */
 @Builder
 @Setter
@@ -20,9 +19,7 @@ public class UserDto {
 
     private long id;
 
-    @Email(message = "Некорректный формат email")
     private String email;
 
-    @NotBlank(message = "Имя не может быть пустым")
     private String name;
 }

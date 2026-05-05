@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   discovery-server:
     build:
@@ -52,6 +50,12 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   stats-db:
     image: postgres:16-alpine
@@ -107,6 +111,24 @@ services:
       timeout: 5s
       retries: 5
 
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    restart: always
+    ports:
+      - "8034:5432"
+    environment:
+      POSTGRES_DB: users
+      POSTGRES_USER: users
+      POSTGRES_PASSWORD: users
+    volumes:
+      - user-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U users -d users"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   stats-server:
     build:
       context: .
@@ -126,6 +148,38 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  user-service:
+    build:
+      context: .
+      dockerfile: core/user-service/Dockerfile
+    container_name: user-service
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users
+      SPRING_DATASOURCE_USERNAME: users
+      SPRING_DATASOURCE_PASSWORD: users
+    depends_on:
+      user-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   main-service:
     build:
@@ -148,6 +202,14 @@ services:
         condition: service_healthy
       stats-server:
         condition: service_started
+      user-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   request-service:
     build:
@@ -175,3 +237,4 @@ volumes:
   stats-data:
   ewm-data:
   request-data:
+  user-data:

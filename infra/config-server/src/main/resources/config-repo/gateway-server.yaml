@@ -11,6 +11,16 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
+        - id: user-service-admin
+          uri: lb://user-service
+          predicates:
+            - Path=/admin/users/**
+
+        - id: user-service-admin-root
+          uri: lb://user-service
+          predicates:
+            - Path=/admin/users
+
         - id: request-service-users
           uri: lb://request-service
           predicates:

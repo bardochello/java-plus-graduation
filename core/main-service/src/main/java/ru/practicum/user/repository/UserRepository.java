@@ -1,31 +1,26 @@
 package ru.practicum.user.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import ru.practicum.user.model.User;
 
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Репозиторий для работы с сущностью User.
- * <p>
- * Предоставляет методы для выполнения операций с пользователями в базе данных.
- */
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    /**
-     * Находит пользователя по email (регистронезависимо).
-     *
-     * @param email email пользователя
-     * @return Optional с пользователем, если найден
-     */
     Optional<User> findByEmailContainingIgnoreCase(String email);
 
-    /**
-     * Находит пользователей по списку идентификаторов.
-     *
-     * @param ids список идентификаторов пользователей
-     * @return список пользователей
-     */
     List<User> findAllByIdIn(List<Long> ids);
+
+    /**
+     * Сохраняет пользователя с явным ID (кэш из user-service).
+     * Использует INSERT ON CONFLICT DO NOTHING чтобы не дублировать записи.
+     */
+    @Modifying
+    @Query(value = "INSERT INTO users (id, name, email) VALUES (:id, :name, :email) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email",
+            nativeQuery = true)
+    void upsertUser(@Param("id") Long id, @Param("name") String name, @Param("email") String email);
 }
