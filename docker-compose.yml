@@ -1,4 +1,5 @@
 services:
+
   discovery-server:
     build:
       context: .
@@ -79,8 +80,6 @@ services:
     image: postgres:16-alpine
     container_name: ewm-db
     restart: always
-    ports:
-      - "8032:5432"
     environment:
       POSTGRES_DB: main
       POSTGRES_USER: main
@@ -97,8 +96,6 @@ services:
     image: postgres:16-alpine
     container_name: request-db
     restart: always
-    ports:
-      - "8033:5432"
     environment:
       POSTGRES_DB: requests
       POSTGRES_USER: requests
@@ -115,8 +112,6 @@ services:
     image: postgres:16-alpine
     container_name: user-db
     restart: always
-    ports:
-      - "8034:5432"
     environment:
       POSTGRES_DB: users
       POSTGRES_USER: users
@@ -148,12 +143,6 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
 
   user-service:
     build:
@@ -174,18 +163,12 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
 
-  main-service:
+  event-service:
     build:
       context: .
-      dockerfile: core/main-service/Dockerfile
-    container_name: main-service
+      dockerfile: core/event-service/Dockerfile
+    container_name: event-service
     restart: always
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
@@ -204,12 +187,6 @@ services:
         condition: service_started
       user-service:
         condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
 
   request-service:
     build:
@@ -230,7 +207,7 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
-      main-service:
+      event-service:
         condition: service_started
 
 volumes:

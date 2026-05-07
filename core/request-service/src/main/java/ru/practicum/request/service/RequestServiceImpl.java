@@ -10,7 +10,7 @@ import ru.practicum.request.dto.EventRequestStatusUpdateResult;
 import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.exception.ConflictResource;
 import ru.practicum.request.exception.NotFoundResource;
-import ru.practicum.request.feign.MainServiceClient;
+import ru.practicum.request.feign.EventServiceClient;
 import ru.practicum.request.mapper.RequestMapper;
 import ru.practicum.request.model.Request;
 import ru.practicum.request.repository.RequestRepository;
@@ -30,7 +30,7 @@ import java.util.List;
 public class RequestServiceImpl implements RequestService {
 
     private final RequestRepository requestRepository;
-    private final MainServiceClient mainServiceClient;
+    private final EventServiceClient mainServiceClient;
 
     @Override
     public List<ParticipationRequestDto> getRequestsByUserId(Long userId) {

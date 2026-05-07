@@ -8,8 +8,8 @@ import ru.practicum.request.dto.EventDto;
 /**
  * Feign-клиент для получения данных о событиях из main-service.
  */
-@FeignClient(name = "main-service", fallback = MainServiceClientFallback.class)
-public interface MainServiceClient {
+@FeignClient(name = "event-service", fallback = EventServiceClientFallback.class)
+public interface EventServiceClient {
 
     @GetMapping("/internal/events/{eventId}")
     EventDto getEventById(@PathVariable("eventId") Long eventId);

@@ -10,8 +10,8 @@ import org.springframework.retry.annotation.EnableRetry;
 @EnableDiscoveryClient
 @EnableRetry
 @EnableFeignClients
-public class MainServiceApp {
+public class EventServiceApp {
     public static void main(String[] args) {
-        SpringApplication.run(MainServiceApp.class, args);
+        SpringApplication.run(EventServiceApp.class, args);
     }
 }

@@ -17,6 +17,8 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+  main:
+    allow-circular-references: true
 
 eureka:
   instance:
@@ -28,10 +30,12 @@ eureka:
     fetch-registry: true
     registry-fetch-interval-seconds: 10
 
+spring.cloud.openfeign.circuitbreaker.enabled: true
+
 resilience4j:
   circuitbreaker:
     instances:
-      main-service:
+      event-service:
         registerHealthIndicator: true
         slidingWindowSize: 10
         minimumNumberOfCalls: 5
@@ -42,8 +46,6 @@ resilience4j:
         eventConsumerBufferSize: 10
   retry:
     instances:
-      main-service:
+      event-service:
         maxAttempts: 3
         waitDuration: 1s
-
-spring.cloud.openfeign.circuitbreaker.enabled: true

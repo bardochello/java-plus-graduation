@@ -36,7 +36,7 @@
 Gateway (8080)
   |─► user-service    — управление пользователями (/admin/users)
   |─► request-service — заявки на участие в событиях (/users/*/requests)
-  |─► main-service    — события, категории, подборки, комментарии
+  |─► event-service    — события, категории, подборки, комментарии
   └─► stats-server    — сбор и получение статистики просмотров
 ```
 
@@ -48,7 +48,7 @@ Gateway (8080)
 | `config-server`    | Централизованное хранение конфигураций                                    | —                         | 8888          |
 | `gateway-server`   | API-шлюз, маршрутизация запросов                                          | —                         | 8080          |
 | `user-service`     | Управление пользователями: создание, получение, удаление                  | PostgreSQL (`user-db`)    | динамический  |
-| `main-service`     | Основной сервис: события, категории, подборки, комментарии                | PostgreSQL (`ewm-db`)     | динамический  |
+| `event-service`     | Основной сервис: события, категории, подборки, комментарии                | PostgreSQL (`ewm-db`)     | динамический  |
 | `request-service`  | Управление заявками на участие в событиях                                 | PostgreSQL (`request-db`) | динамический  |
 | `stats-server`     | Статистика просмотров событий                                             | PostgreSQL (`stats-db`)   | динамический  |
 
@@ -57,15 +57,15 @@ Gateway (8080)
 Сервисы общаются друг с другом через **OpenFeign** с балансировкой нагрузки через **Eureka**.
 
 ```
-request-service → GET  /internal/events/{eventId}                → main-service
+request-service → GET  /internal/events/{eventId}                → event-service
                         (получение данных о событии перед созданием заявки)
 
-main-service    → GET  /internal/requests/events/{eventId}       → request-service
+event-service    → GET  /internal/requests/events/{eventId}       → request-service
                 → PATCH /internal/requests/events/{eventId}      → request-service
                 → GET  /internal/requests/events/{eventId}/count → request-service
                 → GET  /internal/requests/confirmed?eventIds=... → request-service
 
-main-service    → GET  /internal/users/{userId}                  → user-service
+event-service    → GET  /internal/users/{userId}                  → user-service
                         (получение и локальное кэширование данных пользователя)
 ```
 
@@ -79,7 +79,7 @@ main-service    → GET  /internal/users/{userId}                  → user-serv
 
 ```
 infra/config-server/src/main/resources/config-repo/
-├- main-service.yaml    — настройки main-service (БД, Eureka, Resilience4j)
+├- event-service.yaml    — настройки event-service (БД, Eureka, Resilience4j)
 ├- request-service.yaml — настройки request-service (БД, Eureka, Resilience4j)
 ├- user-service.yaml    — настройки user-service (БД, Eureka)
 ├- gateway-server.yaml  — маршруты Gateway
@@ -104,7 +104,7 @@ discovery-server
         ├-► gateway-server
         ├-► stats-server  ──────────────────────────────┐
         ├-► user-service  ──────────────────────────────┤
-        └-► main-service (ждёт stats + user) ───────────┤
+        └-► event-service (ждёт stats + user) ───────────┤
               └-► request-service                       ┘
 ```
 
@@ -136,11 +136,11 @@ discovery-server
 | `/admin/users/**`      | `user-service`    | Управление пользователями       |
 | `/users/*/requests`    | `request-service` | Заявки на участие               |
 | `/users/*/requests/**` | `request-service` | Заявки на участие               |
-| `/users/**`            | `main-service`    | Приватный API пользователей     |
-| `/categories/**`       | `main-service`    | Категории событий               |
-| `/admin/**`            | `main-service`    | Административный API            |
-| `/events/**`           | `main-service`    | Публичный API событий           |
-| `/compilations/**`     | `main-service`    | Подборки событий                |
+| `/users/**`            | `event-service`   | Приватный API пользователей     |
+| `/categories/**`       | `event-service`    | Категории событий               |
+| `/admin/**`            | `event-service`    | Административный API            |
+| `/events/**`           | `event-service`    | Публичный API событий           |
+| `/compilations/**`     | `event-service`    | Подборки событий                |
 
 ---
 
@@ -152,9 +152,9 @@ discovery-server
 
 | Метод | Путь                       | Описание                                               |
 |-------|----------------------------|--------------------------------------------------------|
-| `GET` | `/internal/users/{userId}` | Получить данные пользователя (для main-service)        |
+| `GET` | `/internal/users/{userId}` | Получить данные пользователя (для event-service)        |
 
-### main-service → предоставляет
+### event-service → предоставляет
 
 | Метод | Путь                           | Описание                                               |
 |-------|--------------------------------|--------------------------------------------------------|

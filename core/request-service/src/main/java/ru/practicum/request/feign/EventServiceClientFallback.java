@@ -4,10 +4,10 @@ import org.springframework.stereotype.Component;
 import ru.practicum.request.dto.EventDto;
 
 /**
- * Fallback для MainServiceClient при недоступности main-service.
+ * Fallback для EventServiceClient при недоступности event-service.
  */
 @Component
-public class MainServiceClientFallback implements MainServiceClient {
+public class EventServiceClientFallback implements EventServiceClient {
 
     @Override
     public EventDto getEventById(Long eventId) {

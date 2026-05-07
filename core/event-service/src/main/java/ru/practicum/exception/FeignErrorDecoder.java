@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
  * Конвертирует HTTP-ошибки от удалённых сервисов в локальные исключения,
  * чтобы ErrorHandler мог их корректно обработать.
  */
-@Component
 public class FeignErrorDecoder implements ErrorDecoder {
 
     private final ErrorDecoder defaultDecoder = new Default();

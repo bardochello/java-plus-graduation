@@ -11,7 +11,7 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>main-service</artifactId>
+    <artifactId>event-service</artifactId>
 
     <properties>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
@@ -61,6 +61,11 @@
             <version>${mapstruct.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+
         <!-- Spring Cloud -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -102,8 +107,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-webflux</artifactId>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
         </dependency>
     </dependencies>
 
@@ -113,7 +118,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>ru.practicum.MainServiceApp</mainClass>
+                    <mainClass>ru.practicum.EventServiceApp</mainClass>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
