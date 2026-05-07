@@ -129,7 +129,7 @@ public class EventServiceImp implements EventService {
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(long userId, long eventId,
                                                               EventRequestStatusUpdateRequest eventRequestStatus) {
-        getEventByIdAndInitiatorId(eventId, userId); // проверяем владельца
+        getEventByIdAndInitiatorId(eventId, userId);
         return requestServiceClient.updateRequestStatus(eventId, userId, eventRequestStatus);
     }
 
@@ -313,7 +313,6 @@ public class EventServiceImp implements EventService {
         Map<Long, Event> eventMap = events.stream()
                 .collect(Collectors.toMap(Event::getId, Function.identity()));
 
-        // Батч-запрос подтверждённых заявок
         List<Long> eventIds = List.copyOf(eventMap.keySet());
         Map<Long, Long> confirmedByEvent;
         try {
@@ -327,7 +326,6 @@ public class EventServiceImp implements EventService {
         }
         final Map<Long, Long> finalConfirmed = confirmedByEvent;
 
-        // Статистика просмотров
         List<String> listUrl = eventIds.stream()
                 .map(EVENT_URI_PATTERN::formatted)
                 .collect(Collectors.toList());
