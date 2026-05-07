@@ -14,9 +14,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
-/**
- * Глобальный обработчик исключений для request-service.
- */
 @Slf4j
 @RestControllerAdvice
 public class ErrorHandler {
@@ -65,7 +62,7 @@ public class ErrorHandler {
         );
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleGeneric(Exception e) {
         log.error("500: {}", e.getMessage(), e);
