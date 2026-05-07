@@ -57,6 +57,9 @@ public class RequestServiceImpl implements RequestService {
         }
 
         Long confirmedRequests = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
+        if (confirmedRequests == null) {
+            confirmedRequests = 0L;
+        }
         if (event.getParticipantLimit() > 0 && confirmedRequests >= event.getParticipantLimit()) {
             throw new ConflictResource("Достигнут лимит участников для этого события");
         }
@@ -119,6 +122,9 @@ public class RequestServiceImpl implements RequestService {
         }
 
         Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
+        if (confirmedCount == null) {
+            confirmedCount = 0L;
+        }
 
         if (updateRequest.getStatus() == Status.CONFIRMED
                 && limit > 0

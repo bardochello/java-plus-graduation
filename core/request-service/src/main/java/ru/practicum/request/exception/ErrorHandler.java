@@ -23,7 +23,7 @@ public class ErrorHandler {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    @ExceptionHandler
+    @ExceptionHandler(NotFoundResource.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleNotFound(NotFoundResource e) {
         log.warn("404: {}", e.getMessage());
@@ -35,7 +35,7 @@ public class ErrorHandler {
         );
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(ConflictResource.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleConflict(ConflictResource e) {
         log.warn("409: {}", e.getMessage());
@@ -47,10 +47,6 @@ public class ErrorHandler {
         );
     }
 
-    /**
-     * Обработчик ошибок валидации параметров запроса (400 Bad Request).
-     * Без этого хендлера такие ошибки попадают в generic handleGeneric и возвращают 500.
-     */
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
             MethodArgumentNotValidException.class,
