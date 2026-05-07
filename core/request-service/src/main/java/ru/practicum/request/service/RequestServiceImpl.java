@@ -20,9 +20,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Реализация сервиса для работы с заявками на участие в событиях.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -56,8 +53,9 @@ public class RequestServiceImpl implements RequestService {
             throw new ConflictResource("Заявка на участие в этом событии уже существует");
         }
 
-        long participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
-        Long confirmedRequests = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
+        long participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0L;
+        long confirmedRequests = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED) != null
+                ? requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED) : 0L;
 
         if (participantLimit > 0 && confirmedRequests >= participantLimit) {
             throw new ConflictResource("Достигнут лимит участников для этого события");
@@ -106,14 +104,15 @@ public class RequestServiceImpl implements RequestService {
                                                               EventRequestStatusUpdateRequest updateRequest) {
         EventDto event = getEventOrThrow(eventId);
 
-        long participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
+        long participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0L;
         boolean requestModeration = event.getRequestModeration() != null && event.getRequestModeration();
 
         if (!requestModeration || participantLimit == 0) {
             throw new ConflictResource("Подтверждение заявок не требуется для этого события");
         }
 
-        Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
+        long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED) != null
+                ? requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED) : 0L;
 
         if (updateRequest.getStatus() == Status.CONFIRMED
                 && participantLimit > 0
