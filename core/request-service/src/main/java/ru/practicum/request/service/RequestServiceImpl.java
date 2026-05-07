@@ -56,13 +56,16 @@ public class RequestServiceImpl implements RequestService {
             throw new ConflictResource("Заявка на участие в этом событии уже существует");
         }
 
+        long participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
         Long confirmedRequests = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
-        if (event.getParticipantLimit() > 0 && confirmedRequests >= event.getParticipantLimit()) {
+
+        if (participantLimit > 0 && confirmedRequests >= participantLimit) {
             throw new ConflictResource("Достигнут лимит участников для этого события");
         }
 
         Status status = Status.PENDING;
-        if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
+        boolean requestModeration = event.getRequestModeration() != null && event.getRequestModeration();
+        if (!requestModeration || participantLimit == 0) {
             status = Status.CONFIRMED;
         }
 
@@ -82,6 +85,10 @@ public class RequestServiceImpl implements RequestService {
         Request request = requestRepository.findByIdAndRequesterId(requestId, userId)
                 .orElseThrow(() -> new NotFoundResource("Заявка с id=" + requestId + " не найдена"));
 
+        if (request.getStatus() == Status.CONFIRMED) {
+            throw new ConflictResource("Нельзя отменить уже принятую заявку");
+        }
+
         request.setStatus(Status.CANCELED);
         return RequestMapper.mapToDto(requestRepository.save(request));
     }
@@ -99,15 +106,18 @@ public class RequestServiceImpl implements RequestService {
                                                               EventRequestStatusUpdateRequest updateRequest) {
         EventDto event = getEventOrThrow(eventId);
 
-        if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
+        long participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
+        boolean requestModeration = event.getRequestModeration() != null && event.getRequestModeration();
+
+        if (!requestModeration || participantLimit == 0) {
             throw new ConflictResource("Подтверждение заявок не требуется для этого события");
         }
 
         Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
 
         if (updateRequest.getStatus() == Status.CONFIRMED
-                && event.getParticipantLimit() > 0
-                && confirmedCount >= event.getParticipantLimit()) {
+                && participantLimit > 0
+                && confirmedCount >= participantLimit) {
             throw new ConflictResource("Достигнут лимит участников");
         }
 
@@ -121,7 +131,7 @@ public class RequestServiceImpl implements RequestService {
             }
 
             if (updateRequest.getStatus() == Status.CONFIRMED) {
-                if (event.getParticipantLimit() > 0 && confirmedCount >= event.getParticipantLimit()) {
+                if (participantLimit > 0 && confirmedCount >= participantLimit) {
                     request.setStatus(Status.REJECTED);
                     rejected.add(RequestMapper.mapToDto(requestRepository.save(request)));
                 } else {

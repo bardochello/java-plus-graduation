@@ -61,9 +61,6 @@ public class EventServiceImp implements EventService {
         try {
             return requestServiceClient.getRequestsByEventId(eventId, userId);
         } catch (Exception e) {
-            // Если request-service недоступен — возвращаем пустой список (надёжность по ТЗ).
-            // Бизнес-ошибки (404/409) от request-service здесь крайне маловероятны,
-            // т.к. владельца события мы уже проверили локально.
             return java.util.Collections.emptyList();
         }
     }
@@ -195,8 +192,6 @@ public class EventServiceImp implements EventService {
             specification = specification.and(byRangeStart(param.getRangeStart()));
         if (param.getRangeEnd() != null)
             specification = specification.and(byRangeEnd(param.getRangeEnd()));
-        if (param.getOnlyAvailable() != null && param.getOnlyAvailable())
-            specification = specification.and(byOnlyAvailable());
         if (param.getSort() != null && !param.getSort().isBlank()) {
             if (param.getSort().equals("EVENT_DATE"))
                 sort = Sort.by("eventDate");
@@ -212,9 +207,16 @@ public class EventServiceImp implements EventService {
 
         List<Event> events = eventRepository.findAll(specification, pageable).stream().toList();
 
-        // Обогащаем события количеством подтверждённых заявок и просмотрами через единый helper.
-        // confirmedRequests запрашиваем одним батч-вызовом (без N+1).
-        return updateEventFieldStats(events).stream()
+        List<Event> filteredEvents = events;
+        if (Boolean.TRUE.equals(param.getOnlyAvailable())) {
+            filteredEvents = events.stream()
+                    .filter(e -> e.getParticipantLimit() == null
+                            || e.getParticipantLimit() == 0
+                            || e.getConfirmedRequests() < e.getParticipantLimit())
+                    .toList();
+        }
+
+        return updateEventFieldStats(filteredEvents).stream()
                 .map(EventMapper::mapToEventShortDto)
                 .toList();
     }
@@ -293,11 +295,6 @@ public class EventServiceImp implements EventService {
                     "Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
     }
 
-    /**
-     * Безопасно получает количество подтверждённых заявок.
-     * При недоступности request-service возвращает 0 (надёжность по ТЗ).
-     * Бизнес-ошибки (например, 404 на не существующее событие) пробрасываются.
-     */
     private Long safeCountConfirmedRequests(long eventId) {
         try {
             Long count = requestServiceClient.countConfirmedRequests(eventId);
@@ -309,10 +306,6 @@ public class EventServiceImp implements EventService {
         }
     }
 
-    /**
-     * Обогащает список событий данными о просмотрах и подтверждённых заявках.
-     * Заявки запрашиваются одним батч-вызовом к request-service (без N+1).
-     */
     private List<Event> updateEventFieldStats(List<Event> events) {
         if (events.isEmpty()) {
             return events;
@@ -321,7 +314,6 @@ public class EventServiceImp implements EventService {
         Map<Long, Event> eventMap = events.stream()
                 .collect(Collectors.toMap(Event::getId, Function.identity()));
 
-        // Батч-запрос подтверждённых заявок
         List<Long> eventIds = List.copyOf(eventMap.keySet());
         Map<Long, Long> confirmedByEvent;
         try {
@@ -335,7 +327,6 @@ public class EventServiceImp implements EventService {
         }
         final Map<Long, Long> finalConfirmed = confirmedByEvent;
 
-        // Статистика просмотров
         List<String> listUrl = eventIds.stream()
                 .map(EVENT_URI_PATTERN::formatted)
                 .collect(Collectors.toList());
