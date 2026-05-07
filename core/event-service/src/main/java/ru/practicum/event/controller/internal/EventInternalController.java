@@ -9,7 +9,7 @@ import ru.practicum.event.model.Event;
 import ru.practicum.event.service.EventService;
 
 /**
- * Внутренний контроллер событий для межсервисного взаимодействия (request-service).
+ * Внутренний контроллер для request-service.
  */
 @Validated
 @RestController
@@ -26,7 +26,7 @@ public class EventInternalController {
         return EventInternalDto.builder()
                 .id(event.getId())
                 .initiatorId(event.getInitiator().getId())
-                .state(event.getState())
+                .state(event.getState().name())
                 .participantLimit(event.getParticipantLimit())
                 .requestModeration(event.getRequestModeration())
                 .build();

@@ -1,11 +1,10 @@
 package ru.practicum.event.dto;
 
 import lombok.*;
-import ru.practicum.event.utill.State;
 
 /**
- * DTO для внутреннего API события.
- * Используется request-service для получения данных о событии.
+ * DTO для внутреннего API события (для request-service).
+ * state — String, чтобы идеально совпадать с EventDto в request-service.
  */
 @Getter
 @Setter
@@ -15,7 +14,7 @@ import ru.practicum.event.utill.State;
 public class EventInternalDto {
     private Long id;
     private Long initiatorId;
-    private State state;
+    private String state;
     private Integer participantLimit;
     private Boolean requestModeration;
 }
