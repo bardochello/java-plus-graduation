@@ -20,7 +20,8 @@ public interface RequestService {
     List<ParticipationRequestDto> getRequestsByEventId(Long userId, Long eventId);
 
     EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
-                                                       EventRequestStatusUpdateRequest updateRequest);
+                                                       EventRequestStatusUpdateRequest updateRequest,
+                                                       Integer participantLimit, Boolean requestModeration);
 
     Long countConfirmedRequests(Long eventId);
 

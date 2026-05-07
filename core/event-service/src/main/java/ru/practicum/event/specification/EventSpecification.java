@@ -3,6 +3,7 @@ package ru.practicum.event.specification;
 import lombok.experimental.UtilityClass;
 import org.springframework.data.jpa.domain.Specification;
 import ru.practicum.event.model.Event;
+import ru.practicum.event.utill.State;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,7 +19,10 @@ public class EventSpecification {
     }
 
     public static Specification<Event> byStates(List<String> states) {
-        return (root, cq, cb) -> root.get("state").as(String.class).in(states);
+        List<State> stateEnums = states.stream()
+                .map(State::valueOf)
+                .toList();
+        return (root, cq, cb) -> root.get("state").in(stateEnums);
     }
 
     public static Specification<Event> byCategories(List<Long> categories) {

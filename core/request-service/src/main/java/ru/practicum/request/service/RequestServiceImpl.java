@@ -100,8 +100,8 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
-                                                              EventRequestStatusUpdateRequest updateRequest) {
-        EventDto event = getEventOrThrow(eventId);
+                                                              EventRequestStatusUpdateRequest updateRequest,
+                                                              Integer participantLimit, Boolean requestModeration) {
 
         if (updateRequest.getRequestIds() == null || updateRequest.getRequestIds().isEmpty()) {
             return EventRequestStatusUpdateResult.builder()
@@ -110,19 +110,19 @@ public class RequestServiceImpl implements RequestService {
                     .build();
         }
 
-        Integer participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
-        Boolean requestModeration = event.getRequestModeration() != null ? event.getRequestModeration() : Boolean.TRUE;
+        int limit = participantLimit != null ? participantLimit : 0;
+        boolean moderation = requestModeration != null ? requestModeration : Boolean.TRUE;
 
         // Только для CONFIRMED проверяем модерацию (для REJECTED разрешаем всегда)
-        if (updateRequest.getStatus() == Status.CONFIRMED && (!requestModeration || participantLimit == 0)) {
+        if (updateRequest.getStatus() == Status.CONFIRMED && (!moderation || limit == 0)) {
             throw new ConflictResource("Подтверждение заявок не требуется для этого события");
         }
 
         Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
 
         if (updateRequest.getStatus() == Status.CONFIRMED
-                && participantLimit > 0
-                && confirmedCount >= participantLimit) {
+                && limit > 0
+                && confirmedCount >= limit) {
             throw new ConflictResource("Достигнут лимит участников");
         }
 
@@ -136,7 +136,7 @@ public class RequestServiceImpl implements RequestService {
             }
 
             if (updateRequest.getStatus() == Status.CONFIRMED) {
-                if (participantLimit > 0 && confirmedCount >= participantLimit) {
+                if (limit > 0 && confirmedCount >= limit) {
                     request.setStatus(Status.REJECTED);
                     rejected.add(RequestMapper.mapToDto(requestRepository.save(request)));
                 } else {

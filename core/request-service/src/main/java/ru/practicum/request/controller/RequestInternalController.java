@@ -39,8 +39,10 @@ public class RequestInternalController {
     @PatchMapping("/events/{eventId}")
     public EventRequestStatusUpdateResult updateRequestStatus(@PathVariable @Positive Long eventId,
                                                               @RequestParam @Positive Long userId,
+                                                              @RequestParam(defaultValue = "0") Integer participantLimit,
+                                                              @RequestParam(defaultValue = "true") Boolean requestModeration,
                                                               @RequestBody @Valid EventRequestStatusUpdateRequest updateRequest) {
-        return requestService.updateRequestStatus(userId, eventId, updateRequest);
+        return requestService.updateRequestStatus(userId, eventId, updateRequest, participantLimit, requestModeration);
     }
 
     /**

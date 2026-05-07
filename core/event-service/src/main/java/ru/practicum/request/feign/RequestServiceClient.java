@@ -33,6 +33,8 @@ public interface RequestServiceClient {
     @PatchMapping("/internal/requests/events/{eventId}")
     EventRequestStatusUpdateResult updateRequestStatus(@PathVariable("eventId") Long eventId,
                                                        @RequestParam("userId") Long userId,
+                                                       @RequestParam("participantLimit") Integer participantLimit,
+                                                       @RequestParam("requestModeration") Boolean requestModeration,
                                                        @RequestBody EventRequestStatusUpdateRequest updateRequest);
 
     @GetMapping("/internal/requests/events/{eventId}/count")

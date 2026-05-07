@@ -1,7 +1,6 @@
 package ru.practicum.event.service;
 
 import dto.ViewStatsDto;
-import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -130,20 +129,12 @@ public class EventServiceImp implements EventService {
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(long userId, long eventId,
                                                               EventRequestStatusUpdateRequest eventRequestStatus) {
-        getEventByIdAndInitiatorId(eventId, userId);
-        try {
-            return requestServiceClient.updateRequestStatus(eventId, userId, eventRequestStatus);
-        } catch (FeignException e) {
-            if (e.status() == 409) {
-                throw new ConflictResource("Конфликт при обновлении статуса заявок");
-            } else if (e.status() == 404) {
-                throw new NotFoundResource("Ресурс не найден при обновлении статуса заявок");
-            } else if (e.status() == 400) {
-                throw new BadRequestException("Некорректный запрос при обновлении статуса заявок");
-            } else {
-                throw new RuntimeException("Ошибка при обновлении статуса заявок: " + e.getMessage(), e);
-            }
-        }
+        Event event = getEventByIdAndInitiatorId(eventId, userId);
+        return requestServiceClient.updateRequestStatus(
+                eventId, userId,
+                event.getParticipantLimit(),
+                event.getRequestModeration(),
+                eventRequestStatus);
     }
 
     @Override
