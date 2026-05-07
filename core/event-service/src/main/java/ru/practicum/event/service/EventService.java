@@ -10,9 +10,6 @@ import ru.practicum.request.dto.ParticipationRequestDto;
 
 import java.util.List;
 
-/**
- * Сервис для работы с событиями.
- */
 public interface EventService {
 
     List<ParticipationRequestDto> getRequests(long userId, long eventId);

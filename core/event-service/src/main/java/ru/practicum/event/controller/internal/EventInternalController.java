@@ -9,8 +9,7 @@ import ru.practicum.event.model.Event;
 import ru.practicum.event.service.EventService;
 
 /**
- * Внутренний контроллер событий для межсервисного взаимодействия.
- * Предоставляет API для request-service.
+ * Внутренний контроллер событий для межсервисного взаимодействия (request-service).
  */
 @Validated
 @RestController
@@ -20,15 +19,10 @@ public class EventInternalController {
 
     private final EventService eventService;
 
-    /**
-     * Возвращает данные о событии для request-service.
-     *
-     * @param eventId идентификатор события
-     * @return DTO события с полями для проверки бизнес-правил
-     */
     @GetMapping("/{eventId}")
     public EventInternalDto getEventById(@PathVariable @Positive Long eventId) {
         Event event = eventService.getEventById(eventId);
+
         return EventInternalDto.builder()
                 .id(event.getId())
                 .initiatorId(event.getInitiator().getId())

@@ -196,7 +196,7 @@ public class EventServiceImp implements EventService {
                 : PageRequest.of(param.getFrom() / param.getSize(), param.getSize(), sort);
 
         List<Event> events = eventRepository.findAll(specification, pageable).stream().toList();
-        
+
         List<Event> updatedEvents = updateEventFieldStats(events);
 
         List<Event> filteredEvents = updatedEvents;
@@ -297,9 +297,7 @@ public class EventServiceImp implements EventService {
     }
 
     private List<Event> updateEventFieldStats(List<Event> events) {
-        if (events.isEmpty()) {
-            return events;
-        }
+        if (events.isEmpty()) return events;
 
         Map<Long, Event> eventMap = events.stream()
                 .collect(Collectors.toMap(Event::getId, Function.identity()));
