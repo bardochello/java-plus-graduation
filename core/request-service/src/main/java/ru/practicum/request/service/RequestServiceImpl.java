@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.request.dto.EventDto;
 import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
 import ru.practicum.request.dto.EventRequestStatusUpdateResult;
 import ru.practicum.request.dto.ParticipationRequestDto;
@@ -32,44 +31,16 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public ParticipationRequestDto createRequest(Long userId, Long eventId) {
-        // Проверяем событие через основной сервис
-        EventDto event = mainServiceClient.getEventForRequest(eventId);
-
-        if (event.getState() != ru.practicum.request.dto.State.PUBLISHED) {
-            throw new ConflictResource("Нельзя участвовать в неопубликованном событии");
-        }
-
-        if (event.getInitiator().getId().equals(userId)) {
-            throw new ConflictResource("Инициатор события не может добавить запрос на участие в своём событии");
-        }
-
-        // Проверяем, нет ли уже запроса от этого пользователя
+        // Простая проверка на дубликат
         if (requestRepository.existsByRequesterIdAndEventId(userId, eventId)) {
             throw new ConflictResource("Нельзя добавить повторный запрос на участие в событии");
-        }
-
-        int limit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
-        boolean moderation = event.getRequestModeration() != null ? event.getRequestModeration() : Boolean.TRUE;
-
-        Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
-        if (confirmedCount == null) {
-            confirmedCount = 0L;
-        }
-
-        if (limit > 0 && confirmedCount >= limit) {
-            throw new ConflictResource("Достигнут лимит участников");
         }
 
         Request request = new Request();
         request.setEventId(eventId);
         request.setRequesterId(userId);
         request.setCreated(LocalDateTime.now());
-
-        if (!moderation || limit == 0) {
-            request.setStatus(Status.CONFIRMED);
-        } else {
-            request.setStatus(Status.PENDING);
-        }
+        request.setStatus(Status.PENDING); // по умолчанию PENDING (модерация решается в event-service)
 
         Request saved = requestRepository.save(request);
         return RequestMapper.mapToDto(saved);
@@ -107,18 +78,10 @@ public class RequestServiceImpl implements RequestService {
         }
 
         int limit = participantLimit != null ? participantLimit : 0;
-        boolean moderation = requestModeration != null ? requestModeration : Boolean.TRUE;
-
-        if (updateRequest.getStatus() == Status.CONFIRMED && (!moderation || limit == 0)) {
-            throw new ConflictResource("Подтверждение заявок не требуется для этого события");
-        }
 
         Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
-        if (confirmedCount == null) {
-            confirmedCount = 0L;
-        }
+        if (confirmedCount == null) confirmedCount = 0L;
 
-        // Если пытаются подтвердить, когда лимит уже исчерпан — возвращаем 409
         if (updateRequest.getStatus() == Status.CONFIRMED && limit > 0 && confirmedCount >= limit) {
             throw new ConflictResource("Достигнут лимит участников");
         }
@@ -163,12 +126,14 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     public List<ParticipationRequestDto> getEventRequests(Long userId, Long eventId) {
-        // Проверка, что пользователь — владелец события (через main-service)
-        EventDto event = mainServiceClient.getEventForRequest(eventId);
-        if (!event.getInitiator().getId().equals(userId)) {
-            throw new ConflictResource("Пользователь не является инициатором события");
-        }
+        List<Request> requests = requestRepository.findByEventId(eventId);
+        return requests.stream()
+                .map(RequestMapper::mapToDto)
+                .toList();
+    }
 
+    @Override
+    public List<ParticipationRequestDto> getRequestsByEventId(Long eventId) {
         List<Request> requests = requestRepository.findByEventId(eventId);
         return requests.stream()
                 .map(RequestMapper::mapToDto)
@@ -179,13 +144,5 @@ public class RequestServiceImpl implements RequestService {
     public Long countConfirmedRequests(Long eventId) {
         Long count = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         return count != null ? count : 0L;
-    }
-
-    @Override
-    public List<ParticipationRequestDto> getRequestsByEventId(Long eventId) {
-        List<Request> requests = requestRepository.findByEventId(eventId);
-        return requests.stream()
-                .map(RequestMapper::mapToDto)
-                .toList();
     }
 }

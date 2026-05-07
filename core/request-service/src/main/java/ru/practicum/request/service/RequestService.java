@@ -20,9 +20,6 @@ public interface RequestService {
 
     List<ParticipationRequestDto> getEventRequests(Long userId, Long eventId);
 
-    /**
-     * Получение всех заявок по id события (используется event-service)
-     */
     List<ParticipationRequestDto> getRequestsByEventId(Long eventId);
 
     Long countConfirmedRequests(Long eventId);
