@@ -4,7 +4,7 @@ server:
 spring:
   datasource:
     driverClassName: org.postgresql.Driver
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/requests}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://request-db:5432/requests}
     username: ${SPRING_DATASOURCE_USERNAME:requests}
     password: ${SPRING_DATASOURCE_PASSWORD:requests}
   sql:
@@ -13,39 +13,15 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    properties:
-      hibernate:
-        format_sql: true
     show-sql: true
-  main:
-    allow-circular-references: true
 
 eureka:
   instance:
     prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
   client:
     register-with-eureka: true
     fetch-registry: true
-    registry-fetch-interval-seconds: 10
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://discovery-server:8761/eureka/}
 
 spring.cloud.openfeign.circuitbreaker.enabled: true
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      event-service:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 5s
-        failureRateThreshold: 50
-        eventConsumerBufferSize: 10
-  retry:
-    instances:
-      event-service:
-        maxAttempts: 3
-        waitDuration: 1s
