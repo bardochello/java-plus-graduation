@@ -30,32 +30,24 @@ eureka:
     fetch-registry: true
     registry-fetch-interval-seconds: 10
 
-spring.cloud.openfeign.circuitbreaker.enabled: true
+spring.cloud.openfeign.circuitbreaker.enabled: false
 
 resilience4j:
-  circuitbreaker:
-    instances:
-      request-service:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 5s
-        failureRateThreshold: 50
-      user-service:
-        registerHealthIndicator: true
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        waitDurationInOpenState: 5s
-        failureRateThreshold: 50
   retry:
     instances:
       request-service:
         maxAttempts: 3
         waitDuration: 1s
+        ignoreExceptions:
+          - ru.practicum.exception.ConflictResource
+          - ru.practicum.exception.NotFoundResource
+          - ru.practicum.exception.BadRequestException
+          - ru.practicum.exception.ForbiddenResource
       user-service:
         maxAttempts: 3
         waitDuration: 1s
+        ignoreExceptions:
+          - ru.practicum.exception.ConflictResource
+          - ru.practicum.exception.NotFoundResource
+          - ru.practicum.exception.BadRequestException
+          - ru.practicum.exception.ForbiddenResource

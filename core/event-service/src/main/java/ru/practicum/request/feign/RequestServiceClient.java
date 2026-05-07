@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Feign-клиент для взаимодействия с request-service.
  */
-@FeignClient(name = "request-service", fallback = RequestServiceClientFallback.class)
+@FeignClient(name = "request-service")
 public interface RequestServiceClient {
 
     @GetMapping("/users/{userId}/requests")

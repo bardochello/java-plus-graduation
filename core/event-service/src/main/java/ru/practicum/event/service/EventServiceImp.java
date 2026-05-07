@@ -58,13 +58,20 @@ public class EventServiceImp implements EventService {
     @Override
     public List<ParticipationRequestDto> getRequests(long userId, long eventId) {
         getEventByIdAndInitiatorId(eventId, userId); // проверяем владельца
-        return requestServiceClient.getRequestsByEventId(eventId, userId);
+        try {
+            return requestServiceClient.getRequestsByEventId(eventId, userId);
+        } catch (Exception e) {
+            // Если request-service недоступен — возвращаем пустой список (надёжность по ТЗ).
+            // Бизнес-ошибки (404/409) от request-service здесь крайне маловероятны,
+            // т.к. владельца события мы уже проверили локально.
+            return java.util.Collections.emptyList();
+        }
     }
 
     @Override
     public EventFullDto get(long userId, long eventId) {
         Event event = getEventByIdAndInitiatorId(eventId, userId);
-        Long confirmedRequests = requestServiceClient.countConfirmedRequests(eventId);
+        Long confirmedRequests = safeCountConfirmedRequests(eventId);
         Long views = getViewsForEvent(event.getCreatedOn(), eventId);
         return EventMapper.toEventFullDto(event, confirmedRequests, views);
     }
@@ -116,7 +123,7 @@ public class EventServiceImp implements EventService {
         }
 
         Event updatedEvent = eventRepository.save(event);
-        Long confirmedRequests = requestServiceClient.countConfirmedRequests(eventId);
+        Long confirmedRequests = safeCountConfirmedRequests(eventId);
         Long views = getViewsForEvent(event.getCreatedOn(), eventId);
         return EventMapper.toEventFullDto(updatedEvent, confirmedRequests, views);
     }
@@ -204,35 +211,12 @@ public class EventServiceImp implements EventService {
                 : PageRequest.of(param.getFrom() / param.getSize(), param.getSize(), sort);
 
         List<Event> events = eventRepository.findAll(specification, pageable).stream().toList();
-        Map<Long, Event> eventMap = events.stream()
-                .collect(Collectors.toMap(Event::getId, Function.identity()));
 
-        List<String> listUrl = eventMap.keySet().stream()
-                .map(EVENT_URI_PATTERN::formatted)
-                .collect(Collectors.toList());
-
-        Optional<LocalDateTime> start = eventMap.values().stream()
-                .map(Event::getCreatedOn)
-                .min(LocalDateTime::compareTo);
-
-        String startStr = start.orElse(LocalDateTime.now().minusYears(1)).format(DT_FORMATTER);
-        String endStr   = LocalDateTime.now().format(DT_FORMATTER);
-
-        Map<String, Long> statsCount;
-        try {
-            statsCount = statsClient.getStats(startStr, endStr, listUrl, true)
-                    .stream()
-                    .collect(Collectors.toMap(ViewStatsDto::getUri, ViewStatsDto::getHits));
-        } catch (Exception e) {
-            statsCount = Map.of();
-        }
-        final Map<String, Long> finalStats = statsCount;
-
-        return eventMap.values().stream()
-                .map(event -> {
-                    Long views = finalStats.getOrDefault(EVENT_URI_PATTERN.formatted(event.getId()), 0L);
-                    return EventMapper.mapToEventShortDto(event.toBuilder().views(views).build());
-                }).toList();
+        // Обогащаем события количеством подтверждённых заявок и просмотрами через единый helper.
+        // confirmedRequests запрашиваем одним батч-вызовом (без N+1).
+        return updateEventFieldStats(events).stream()
+                .map(EventMapper::mapToEventShortDto)
+                .toList();
     }
 
     @Override
@@ -307,6 +291,22 @@ public class EventServiceImp implements EventService {
         if (!eventDate.isAfter(LocalDateTime.now().minusHours(1)))
             throw new BadRequestException(
                     "Дата начала изменяемого события должна быть не ранее чем за час от даты публикации");
+    }
+
+    /**
+     * Безопасно получает количество подтверждённых заявок.
+     * При недоступности request-service возвращает 0 (надёжность по ТЗ).
+     * Бизнес-ошибки (например, 404 на не существующее событие) пробрасываются.
+     */
+    private Long safeCountConfirmedRequests(long eventId) {
+        try {
+            Long count = requestServiceClient.countConfirmedRequests(eventId);
+            return count == null ? 0L : count;
+        } catch (NotFoundResource | ConflictResource | BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     /**

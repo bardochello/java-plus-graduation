@@ -1,10 +1,14 @@
 package ru.practicum.request.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -43,6 +47,28 @@ public class ErrorHandler {
         );
     }
 
+    /**
+     * Обработчик ошибок валидации параметров запроса (400 Bad Request).
+     * Без этого хендлера такие ошибки попадают в generic handleGeneric и возвращают 500.
+     */
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentNotValidException.class,
+            ConstraintViolationException.class,
+            MethodArgumentTypeMismatchException.class,
+            IllegalArgumentException.class
+    })
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleBadRequest(Exception e) {
+        log.warn("400: {}", e.getMessage());
+        return Map.of(
+                "status", "BAD_REQUEST",
+                "reason", "Incorrectly made request.",
+                "message", e.getMessage() == null ? "Validation failed" : e.getMessage(),
+                "timestamp", LocalDateTime.now().format(FORMATTER)
+        );
+    }
+
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleGeneric(Exception e) {
@@ -50,7 +76,7 @@ public class ErrorHandler {
         return Map.of(
                 "status", "INTERNAL_SERVER_ERROR",
                 "reason", "An unexpected error occurred.",
-                "message", e.getMessage(),
+                "message", e.getMessage() == null ? "Unknown error" : e.getMessage(),
                 "timestamp", LocalDateTime.now().format(FORMATTER)
         );
     }
