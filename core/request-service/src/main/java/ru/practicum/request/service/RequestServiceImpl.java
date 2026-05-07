@@ -103,10 +103,18 @@ public class RequestServiceImpl implements RequestService {
                                                               EventRequestStatusUpdateRequest updateRequest) {
         EventDto event = getEventOrThrow(eventId);
 
+        if (updateRequest.getRequestIds() == null || updateRequest.getRequestIds().isEmpty()) {
+            return EventRequestStatusUpdateResult.builder()
+                    .confirmedRequests(new ArrayList<>())
+                    .rejectedRequests(new ArrayList<>())
+                    .build();
+        }
+
         Integer participantLimit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
         Boolean requestModeration = event.getRequestModeration() != null ? event.getRequestModeration() : Boolean.TRUE;
 
-        if (!requestModeration || participantLimit == 0) {
+        // Только для CONFIRMED проверяем модерацию (для REJECTED разрешаем всегда)
+        if (updateRequest.getStatus() == Status.CONFIRMED && (!requestModeration || participantLimit == 0)) {
             throw new ConflictResource("Подтверждение заявок не требуется для этого события");
         }
 
