@@ -36,13 +36,18 @@ import java.util.stream.Collectors;
 
 import static ru.practicum.event.specification.EventSpecification.*;
 
+/**
+ * Реализация сервиса для работы с событиями.
+ * Взаимодействие с заявками — через Feign-клиент request-service.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class EventServiceImp implements EventService {
 
     private static final String EVENT_URI_PATTERN = "/events/%d";
-    private static final DateTimeFormatter DT_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter DT_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final CategoryService categoryService;
     private final UserService userService;
@@ -52,7 +57,7 @@ public class EventServiceImp implements EventService {
 
     @Override
     public List<ParticipationRequestDto> getRequests(long userId, long eventId) {
-        getEventByIdAndInitiatorId(eventId, userId);
+        getEventByIdAndInitiatorId(eventId, userId); // проверяем владельца
         try {
             return requestServiceClient.getRequestsByEventId(eventId, userId);
         } catch (Exception e) {
@@ -124,7 +129,7 @@ public class EventServiceImp implements EventService {
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(long userId, long eventId,
                                                               EventRequestStatusUpdateRequest eventRequestStatus) {
-        getEventByIdAndInitiatorId(eventId, userId);
+        getEventByIdAndInitiatorId(eventId, userId); // проверяем владельца
         return requestServiceClient.updateRequestStatus(eventId, userId, eventRequestStatus);
     }
 
@@ -133,11 +138,16 @@ public class EventServiceImp implements EventService {
         Pageable pageable = PageRequest.of(param.getFrom() / param.getSize(), param.getSize());
         Specification<Event> specification = Specification.where(null);
 
-        if (param.getUsers() != null) specification = specification.and(byUser(param.getUsers()));
-        if (param.getStates() != null) specification = specification.and(byStates(param.getStates()));
-        if (param.getCategories() != null) specification = specification.and(byCategories(param.getCategories()));
-        if (param.getRangeStart() != null) specification = specification.and(byRangeStart(param.getRangeStart()));
-        if (param.getRangeEnd() != null) specification = specification.and(byRangeEnd(param.getRangeEnd()));
+        if (param.getUsers() != null)
+            specification = specification.and(byUser(param.getUsers()));
+        if (param.getStates() != null)
+            specification = specification.and(byStates(param.getStates()));
+        if (param.getCategories() != null)
+            specification = specification.and(byCategories(param.getCategories()));
+        if (param.getRangeStart() != null)
+            specification = specification.and(byRangeStart(param.getRangeStart()));
+        if (param.getRangeEnd() != null)
+            specification = specification.and(byRangeEnd(param.getRangeEnd()));
 
         List<Event> events = eventRepository.findAll(specification, pageable).stream().toList();
         return updateEventFieldStats(events).stream()
@@ -197,18 +207,15 @@ public class EventServiceImp implements EventService {
 
         List<Event> events = eventRepository.findAll(specification, pageable).stream().toList();
 
-        List<Event> updatedEvents = updateEventFieldStats(events);
+        List<Event> enrichedEvents = updateEventFieldStats(events);
 
-        List<Event> filteredEvents = updatedEvents;
-        if (Boolean.TRUE.equals(param.getOnlyAvailable())) {
-            filteredEvents = updatedEvents.stream()
-                    .filter(e -> e.getParticipantLimit() == null
-                            || e.getParticipantLimit() == 0
-                            || e.getConfirmedRequests() < e.getParticipantLimit())
+        if (param.getOnlyAvailable() != null && param.getOnlyAvailable()) {
+            enrichedEvents = enrichedEvents.stream()
+                    .filter(e -> e.getParticipantLimit() == 0 || e.getConfirmedRequests() < e.getParticipantLimit())
                     .toList();
         }
 
-        return filteredEvents.stream()
+        return enrichedEvents.stream()
                 .map(EventMapper::mapToEventShortDto)
                 .toList();
     }
@@ -239,22 +246,22 @@ public class EventServiceImp implements EventService {
     }
 
     private void updateEventFields(Event event, UpdateEventUserRequest updateEvent) {
-        if (updateEvent.getAnnotation() != null) event.setAnnotation(updateEvent.getAnnotation());
+        if (updateEvent.getAnnotation() != null)    event.setAnnotation(updateEvent.getAnnotation());
         if (updateEvent.getCategory() != null)
             event.setCategory(categoryService.getCategoryById(updateEvent.getCategory()));
-        if (updateEvent.getDescription() != null) event.setDescription(updateEvent.getDescription());
-        if (updateEvent.getEventDate() != null) event.setEventDate(updateEvent.getEventDate());
-        if (updateEvent.getLocation() != null) event.setLocation(updateEvent.getLocation());
-        if (updateEvent.getPaid() != null) event.setPaid(updateEvent.getPaid());
+        if (updateEvent.getDescription() != null)   event.setDescription(updateEvent.getDescription());
+        if (updateEvent.getEventDate() != null)     event.setEventDate(updateEvent.getEventDate());
+        if (updateEvent.getLocation() != null)      event.setLocation(updateEvent.getLocation());
+        if (updateEvent.getPaid() != null)          event.setPaid(updateEvent.getPaid());
         if (updateEvent.getParticipantLimit() != null) event.setParticipantLimit(updateEvent.getParticipantLimit());
         if (updateEvent.getRequestModeration() != null) event.setRequestModeration(updateEvent.getRequestModeration());
-        if (updateEvent.getTitle() != null) event.setTitle(updateEvent.getTitle());
+        if (updateEvent.getTitle() != null)         event.setTitle(updateEvent.getTitle());
     }
 
     private Long getViewsForEvent(LocalDateTime start, Long eventId) {
         try {
             String startStr = start.format(DT_FORMATTER);
-            String endStr = LocalDateTime.now().format(DT_FORMATTER);
+            String endStr   = LocalDateTime.now().format(DT_FORMATTER);
             List<ViewStatsDto> stats = statsClient.getStats(
                     startStr, endStr, List.of(EVENT_URI_PATTERN.formatted(eventId)), true);
             return stats.isEmpty() ? 0L : stats.getFirst().getHits();
@@ -291,17 +298,22 @@ public class EventServiceImp implements EventService {
         try {
             Long count = requestServiceClient.countConfirmedRequests(eventId);
             return count == null ? 0L : count;
+        } catch (NotFoundResource | ConflictResource | BadRequestException e) {
+            throw e;
         } catch (Exception e) {
             return 0L;
         }
     }
 
     private List<Event> updateEventFieldStats(List<Event> events) {
-        if (events.isEmpty()) return events;
+        if (events.isEmpty()) {
+            return events;
+        }
 
         Map<Long, Event> eventMap = events.stream()
                 .collect(Collectors.toMap(Event::getId, Function.identity()));
 
+        // Батч-запрос подтверждённых заявок
         List<Long> eventIds = List.copyOf(eventMap.keySet());
         Map<Long, Long> confirmedByEvent;
         try {
@@ -315,6 +327,7 @@ public class EventServiceImp implements EventService {
         }
         final Map<Long, Long> finalConfirmed = confirmedByEvent;
 
+        // Статистика просмотров
         List<String> listUrl = eventIds.stream()
                 .map(EVENT_URI_PATTERN::formatted)
                 .collect(Collectors.toList());
@@ -324,7 +337,7 @@ public class EventServiceImp implements EventService {
                 .min(LocalDateTime::compareTo);
 
         String startStr = minCreated.orElse(LocalDateTime.now().minusYears(1)).format(DT_FORMATTER);
-        String endStr = LocalDateTime.now().plusMinutes(1).format(DT_FORMATTER);
+        String endStr   = LocalDateTime.now().plusMinutes(1).format(DT_FORMATTER);
 
         Map<String, Long> statsCount;
         try {

@@ -5,13 +5,14 @@ import org.springframework.web.bind.annotation.*;
 import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
 import ru.practicum.request.dto.EventRequestStatusUpdateResult;
 import ru.practicum.request.dto.ParticipationRequestDto;
+import ru.practicum.exception.FeignClientConfig;
 
 import java.util.List;
 
 /**
  * Feign-клиент для взаимодействия с request-service.
  */
-@FeignClient(name = "request-service")
+@FeignClient(name = "request-service", configuration = FeignClientConfig.class)
 public interface RequestServiceClient {
 
     @GetMapping("/users/{userId}/requests")
