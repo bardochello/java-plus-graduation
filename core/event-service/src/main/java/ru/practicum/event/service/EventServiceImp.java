@@ -38,7 +38,6 @@ import static ru.practicum.event.specification.EventSpecification.*;
 
 /**
  * Реализация сервиса для работы с событиями.
- * Взаимодействие с заявками — через Feign-клиент request-service.
  */
 @Service
 @RequiredArgsConstructor
@@ -128,13 +127,21 @@ public class EventServiceImp implements EventService {
     @Override
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(long userId, long eventId,
-                                                              EventRequestStatusUpdateRequest eventRequestStatus) {
-        Event event = getEventByIdAndInitiatorId(eventId, userId);
-        return requestServiceClient.updateRequestStatus(
-                eventId, userId,
-                event.getParticipantLimit(),
-                event.getRequestModeration(),
-                eventRequestStatus);
+                                                              EventRequestStatusUpdateRequest eventRequestStatus,
+                                                              Integer participantLimit, Boolean requestModeration) {
+        // Права проверены в контроллере через getEventByIdAndCheckOwner
+        try {
+            return requestServiceClient.updateRequestStatus(
+                    eventId,
+                    userId,
+                    participantLimit,
+                    requestModeration,
+                    eventRequestStatus);
+        } catch (ConflictResource | NotFoundResource | BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при обновлении статуса заявок: " + e.getMessage(), e);
+        }
     }
 
     @Override
@@ -239,14 +246,24 @@ public class EventServiceImp implements EventService {
     @Override
     public Event getEventById(long eventId) {
         return eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundResource(
-                        "Событие %d не найдено".formatted(eventId)));
+                .orElseThrow(() -> new NotFoundResource("Событие с id=%d не найдено".formatted(eventId)));
+    }
+
+    @Override
+    public Event getEventByIdAndCheckOwner(long userId, long eventId) {
+        Event event = getEventById(eventId);
+        if (event.getInitiator().getId() != userId) {
+            throw new NotFoundResource("Событие с id=%d не найдено или недоступно пользователю".formatted(eventId));
+        }
+        return event;
     }
 
     private Event getEventByIdAndInitiatorId(long eventId, long userId) {
-        return eventRepository.findByIdAndInitiatorId(eventId, userId)
-                .orElseThrow(() -> new NotFoundResource(
-                        "Событие с id=" + eventId + " не найдено"));
+        Event event = getEventById(eventId);
+        if (event.getInitiator().getId() != userId) {
+            throw new NotFoundResource("Событие с id=%d не найдено или недоступно пользователю".formatted(eventId));
+        }
+        return event;
     }
 
     private void updateEventFields(Event event, UpdateEventUserRequest updateEvent) {
@@ -302,8 +319,6 @@ public class EventServiceImp implements EventService {
         try {
             Long count = requestServiceClient.countConfirmedRequests(eventId);
             return count == null ? 0L : count;
-        } catch (NotFoundResource | ConflictResource | BadRequestException e) {
-            throw e;
         } catch (Exception e) {
             return 0L;
         }
@@ -318,6 +333,7 @@ public class EventServiceImp implements EventService {
                 .collect(Collectors.toMap(Event::getId, Function.identity()));
 
         List<Long> eventIds = List.copyOf(eventMap.keySet());
+
         Map<Long, Long> confirmedByEvent;
         try {
             confirmedByEvent = requestServiceClient

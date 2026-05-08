@@ -10,28 +10,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Репозиторий для работы с заявками на участие в событиях.
- */
 public interface RequestRepository extends JpaRepository<Request, Long> {
 
-    List<Request> findByEventId(Long eventId);
+    List<Request> findByRequesterId(Long requesterId);
 
-    List<Request> findByIdInAndEventId(List<Long> requestIds, Long eventId);
+    boolean existsByRequesterIdAndEventId(Long requesterId, Long eventId);
 
     Long countByEventIdAndStatus(Long eventId, Status status);
 
-    Optional<Request> findByEventIdAndRequesterId(Long eventId, Long requesterId);
+    List<Request> findByEventId(Long eventId);
 
-    List<Request> findByRequesterId(Long requesterId);
+    Optional<Request> findByIdAndRequesterId(Long requestId, Long requesterId);
+
+    List<Request> findByIdInAndEventId(List<Long> requestIds, Long eventId);
 
     @Query("SELECT r FROM Request r WHERE r.eventId IN :eventIds AND r.status = :status")
     List<Request> findAllByEventIdInAndStatus(@Param("eventIds") Collection<Long> eventIds,
                                               @Param("status") Status status);
-
-    List<Request> findByEventIdAndStatus(Long eventId, Status status);
-
-    boolean existsByRequesterIdAndEventId(Long requesterId, Long eventId);
-
-    Optional<Request> findByIdAndRequesterId(Long requestId, Long requesterId);
 }

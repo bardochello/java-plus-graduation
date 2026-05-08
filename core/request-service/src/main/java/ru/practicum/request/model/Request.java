@@ -8,14 +8,11 @@ import ru.practicum.request.utill.Status;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Сущность заявки на участие в событии.
- */
-@Builder
-@Table(name = "requests")
 @Entity
+@Table(name = "requests")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Request {
@@ -24,7 +21,7 @@ public class Request {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "created", nullable = false)
+    @Column(nullable = false)
     private LocalDateTime created;
 
     @Column(name = "event_id", nullable = false)
@@ -34,7 +31,7 @@ public class Request {
     private Long requesterId;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false)
     private Status status;
 
     @PrePersist

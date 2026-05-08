@@ -9,9 +9,6 @@ import ru.practicum.exception.FeignClientConfig;
 
 import java.util.List;
 
-/**
- * Feign-клиент для взаимодействия с request-service.
- */
 @FeignClient(name = "request-service", configuration = FeignClientConfig.class)
 public interface RequestServiceClient {
 
@@ -31,11 +28,12 @@ public interface RequestServiceClient {
                                                        @RequestParam("userId") Long userId);
 
     @PatchMapping("/internal/requests/events/{eventId}")
-    EventRequestStatusUpdateResult updateRequestStatus(@PathVariable("eventId") Long eventId,
-                                                       @RequestParam("userId") Long userId,
-                                                       @RequestParam("participantLimit") Integer participantLimit,
-                                                       @RequestParam("requestModeration") Boolean requestModeration,
-                                                       @RequestBody EventRequestStatusUpdateRequest updateRequest);
+    EventRequestStatusUpdateResult updateRequestStatus(
+            @PathVariable("eventId") Long eventId,
+            @RequestParam("userId") Long userId,
+            @RequestParam("participantLimit") Integer participantLimit,
+            @RequestParam("requestModeration") Boolean requestModeration,
+            @RequestBody EventRequestStatusUpdateRequest updateRequest);
 
     @GetMapping("/internal/requests/events/{eventId}/count")
     Long countConfirmedRequests(@PathVariable("eventId") Long eventId);

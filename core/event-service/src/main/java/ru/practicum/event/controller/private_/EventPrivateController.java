@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.event.dto.*;
+import ru.practicum.event.model.Event;
 import ru.practicum.event.service.EventService;
 import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
 import ru.practicum.request.dto.EventRequestStatusUpdateResult;
@@ -15,14 +16,12 @@ import ru.practicum.request.dto.ParticipationRequestDto;
 
 import java.util.List;
 
-/**
- * Контроллер для приватных операций с событиями пользователей.
- */
 @Validated
 @RequestMapping("/users/{userId}/events")
 @RestController
 @RequiredArgsConstructor
 public class EventPrivateController {
+
     private final EventService eventService;
 
     @GetMapping("/{eventId}/requests")
@@ -46,8 +45,8 @@ public class EventPrivateController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    EventFullDto create(@PathVariable @Positive long userId,
-                        @RequestBody @Valid NewEventDto eventDto) {
+    public EventFullDto create(@PathVariable @Positive long userId,
+                               @RequestBody @Valid NewEventDto eventDto) {
         return eventService.create(userId, eventDto);
     }
 
@@ -62,7 +61,14 @@ public class EventPrivateController {
     public EventRequestStatusUpdateResult updateRequestStatus(
             @PathVariable @Positive long userId,
             @PathVariable @Positive long eventId,
-            @RequestBody @Valid EventRequestStatusUpdateRequest eventRequestStatus) {
-        return eventService.updateRequestStatus(userId, eventId, eventRequestStatus);
+            @RequestBody(required = false) EventRequestStatusUpdateRequest eventRequestStatus) {
+
+        // Получаем событие напрямую из БД (без обращения к request-service),
+        // чтобы взять participantLimit и requestModeration
+        Event event = eventService.getEventByIdAndCheckOwner(userId, eventId);
+
+        return eventService.updateRequestStatus(userId, eventId,
+                eventRequestStatus != null ? eventRequestStatus : new EventRequestStatusUpdateRequest(),
+                event.getParticipantLimit(), event.getRequestModeration());
     }
 }

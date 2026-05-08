@@ -23,7 +23,8 @@ public interface EventService {
     EventFullDto update(long userId, long eventId, UpdateEventUserRequest updateEvent);
 
     EventRequestStatusUpdateResult updateRequestStatus(long userId, long eventId,
-                                                       EventRequestStatusUpdateRequest eventRequestStatus);
+                                                       EventRequestStatusUpdateRequest eventRequestStatus,
+                                                       Integer participantLimit, Boolean requestModeration);
 
     List<EventFullDto> getEventsByAdmin(EventGetAdminParam param);
 
@@ -34,4 +35,6 @@ public interface EventService {
     EventFullDto getEventByPublic(long eventId);
 
     Event getEventById(long eventId);
+
+    Event getEventByIdAndCheckOwner(long userId, long eventId);
 }

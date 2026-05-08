@@ -156,6 +156,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users
       SPRING_DATASOURCE_USERNAME: users
       SPRING_DATASOURCE_PASSWORD: users
+      SERVER_PORT: 8083
     depends_on:
       user-db:
         condition: service_healthy
@@ -176,6 +177,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main
       SPRING_DATASOURCE_USERNAME: main
       SPRING_DATASOURCE_PASSWORD: main
+      SERVER_PORT: 8081
     depends_on:
       ewm-db:
         condition: service_healthy
@@ -200,6 +202,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://request-db:5432/requests
       SPRING_DATASOURCE_USERNAME: requests
       SPRING_DATASOURCE_PASSWORD: requests
+      SERVER_PORT: 8082
     depends_on:
       request-db:
         condition: service_healthy

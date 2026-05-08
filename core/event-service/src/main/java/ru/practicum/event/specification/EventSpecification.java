@@ -39,8 +39,12 @@ public class EventSpecification {
 
     public static Specification<Event> byText(String text) {
         String searchPattern = "%" + text.toLowerCase() + "%";
-        return (root, cq, cb) -> cb.or(cb.like(cb.lower(root.get("annotation")), searchPattern),
-                cb.like(cb.lower(root.get("description")), searchPattern));
+
+        return (root, cq, cb) -> cb.or(
+                cb.like(cb.lower(root.get("annotation")), searchPattern),
+                cb.like(cb.lower(root.get("description")), searchPattern),
+                cb.like(cb.lower(root.get("title")), searchPattern)
+        );
     }
 
     public static Specification<Event> byPaid(boolean paid) {

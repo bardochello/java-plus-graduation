@@ -4,9 +4,6 @@ import lombok.*;
 
 import java.util.List;
 
-/**
- * DTO для результата обновления статусов заявок (используется в Feign-клиенте).
- */
 @Getter
 @Setter
 @Builder
