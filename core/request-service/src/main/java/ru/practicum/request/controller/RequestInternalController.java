@@ -10,8 +10,7 @@ import ru.practicum.request.service.RequestService;
 import java.util.List;
 
 /**
- * Внутренний контроллер для межсервисного взаимодействия.
- * Используется event-service для получения данных о заявках.
+ * Внутренний контроллер — только для межсервисного чтения данных event-service.
  */
 @Validated
 @RestController
@@ -21,17 +20,11 @@ public class RequestInternalController {
 
     private final RequestService requestService;
 
-    /**
-     * Возвращает количество подтверждённых заявок для события.
-     */
     @GetMapping("/events/{eventId}/count")
     public Long countConfirmedRequests(@PathVariable @Positive Long eventId) {
         return requestService.countConfirmedRequests(eventId);
     }
 
-    /**
-     * Возвращает подтверждённые заявки для списка событий (batch).
-     */
     @GetMapping("/confirmed")
     public List<ParticipationRequestDto> getConfirmedRequestsByEventIds(@RequestParam List<Long> eventIds) {
         return requestService.getRequestsByEventIdIn(eventIds);

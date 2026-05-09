@@ -24,7 +24,7 @@ import java.util.List;
 public class RequestServiceImpl implements RequestService {
 
     private final RequestRepository requestRepository;
-    private final EventServiceClient mainServiceClient;
+    private final EventServiceClient eventServiceClient;
 
     @Override
     public List<ParticipationRequestDto> getRequestsByUserId(Long userId) {
@@ -38,14 +38,12 @@ public class RequestServiceImpl implements RequestService {
     public ParticipationRequestDto createRequest(Long userId, Long eventId) {
         EventDto event = getEventOrThrow(eventId);
 
-        if (Boolean.TRUE.equals(event.getInitiatorId().equals(userId))) {
+        if (event.getInitiatorId().equals(userId)) {
             throw new ConflictResource("Инициатор события не может добавить запрос на участие в своём событии");
         }
-
         if (!"PUBLISHED".equals(event.getState())) {
             throw new ConflictResource("Нельзя участвовать в неопубликованном событии");
         }
-
         if (requestRepository.existsByRequesterIdAndEventId(userId, eventId)) {
             throw new ConflictResource("Заявка уже существует");
         }
@@ -53,7 +51,8 @@ public class RequestServiceImpl implements RequestService {
         Long confirmed = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         if (confirmed == null) confirmed = 0L;
 
-        if (event.getParticipantLimit() != null && event.getParticipantLimit() > 0 && confirmed >= event.getParticipantLimit()) {
+        if (event.getParticipantLimit() != null && event.getParticipantLimit() > 0
+                && confirmed >= event.getParticipantLimit()) {
             throw new ConflictResource("Достигнут лимит участников события");
         }
 
@@ -76,8 +75,6 @@ public class RequestServiceImpl implements RequestService {
     public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
         Request request = requestRepository.findByIdAndRequesterId(requestId, userId)
                 .orElseThrow(() -> new NotFoundResource("Request with id=" + requestId + " was not found"));
-
-        // По спецификации пользователь может отменить заявку в любом статусе
         request.setStatus(Status.CANCELED);
         return RequestMapper.mapToDto(requestRepository.save(request));
     }
@@ -92,8 +89,16 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
-                                                              EventRequestStatusUpdateRequest updateRequest,
-                                                              Integer participantLimit, Boolean requestModeration) {
+                                                              EventRequestStatusUpdateRequest updateRequest) {
+        // Получаем данные события (participantLimit, requestModeration, initiatorId)
+        EventDto event = getEventOrThrow(eventId);
+
+        // Проверяем что userId — владелец события
+        if (!event.getInitiatorId().equals(userId)) {
+            throw new NotFoundResource("Событие " + eventId + " не найдено или недоступно пользователю " + userId);
+        }
+
+        int limit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
 
         List<Long> requestIds = updateRequest.getRequestIds();
         if (requestIds == null || requestIds.isEmpty()) {
@@ -105,7 +110,7 @@ public class RequestServiceImpl implements RequestService {
             throw new NotFoundResource("Не все заявки найдены для события " + eventId);
         }
 
-        // Сначала проверяем что ВСЕ заявки в статусе PENDING
+        // Проверяем что все заявки в статусе PENDING
         for (Request req : requests) {
             if (!Status.PENDING.equals(req.getStatus())) {
                 throw new ConflictResource("Можно изменять статус только у заявок в состоянии PENDING");
@@ -115,9 +120,7 @@ public class RequestServiceImpl implements RequestService {
         Long countResult = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         long currentConfirmed = countResult != null ? countResult : 0L;
 
-        int limit = (participantLimit != null) ? participantLimit : 0;
-
-        // Если запрошено CONFIRMED, но лимит уже достигнут — сразу 409
+        // Если запрошено CONFIRMED, но лимит уже достигнут — 409
         if (Status.CONFIRMED.equals(updateRequest.getStatus())
                 && limit > 0 && currentConfirmed >= limit) {
             throw new ConflictResource("The participant limit has been reached");
@@ -129,7 +132,6 @@ public class RequestServiceImpl implements RequestService {
         for (Request req : requests) {
             if (Status.CONFIRMED.equals(updateRequest.getStatus())) {
                 if (limit > 0 && currentConfirmed >= limit) {
-                    // Лимит исчерпан в процессе пакетного подтверждения — остальные отклоняем
                     req.setStatus(Status.REJECTED);
                     rejectedList.add(RequestMapper.mapToDto(requestRepository.save(req)));
                 } else {
@@ -143,15 +145,14 @@ public class RequestServiceImpl implements RequestService {
             }
         }
 
-        // После подтверждений, если лимит исчерпан — автоматически отклоняем все оставшиеся PENDING
+        // Если лимит исчерпан — автоматически отклоняем все оставшиеся PENDING
         if (limit > 0 && currentConfirmed >= limit) {
-            List<Request> remaining = requestRepository.findByEventId(eventId).stream()
+            requestRepository.findByEventId(eventId).stream()
                     .filter(r -> Status.PENDING.equals(r.getStatus()))
-                    .toList();
-            for (Request r : remaining) {
-                r.setStatus(Status.REJECTED);
-                requestRepository.save(r);
-            }
+                    .forEach(r -> {
+                        r.setStatus(Status.REJECTED);
+                        requestRepository.save(r);
+                    });
         }
 
         return EventRequestStatusUpdateResult.builder()
@@ -175,7 +176,7 @@ public class RequestServiceImpl implements RequestService {
     }
 
     private EventDto getEventOrThrow(Long eventId) {
-        EventDto event = mainServiceClient.getEventById(eventId);
+        EventDto event = eventServiceClient.getEventById(eventId);
         if (event == null) {
             throw new NotFoundResource("Event with id=" + eventId + " not found");
         }

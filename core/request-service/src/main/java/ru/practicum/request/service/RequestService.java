@@ -6,16 +6,9 @@ import ru.practicum.request.dto.ParticipationRequestDto;
 
 import java.util.List;
 
-/**
- * Сервис для работы с заявками на участие в событиях.
- */
 public interface RequestService {
 
     List<ParticipationRequestDto> getRequestsByUserId(Long userId);
-
-    default List<ParticipationRequestDto> getUserRequests(Long userId) {
-        return getRequestsByUserId(userId);
-    }
 
     ParticipationRequestDto createRequest(Long userId, Long eventId);
 
@@ -24,8 +17,7 @@ public interface RequestService {
     List<ParticipationRequestDto> getRequestsByEventId(Long userId, Long eventId);
 
     EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
-                                                       EventRequestStatusUpdateRequest updateRequest,
-                                                       Integer participantLimit, Boolean requestModeration);
+                                                       EventRequestStatusUpdateRequest updateRequest);
 
     Long countConfirmedRequests(Long eventId);
 
