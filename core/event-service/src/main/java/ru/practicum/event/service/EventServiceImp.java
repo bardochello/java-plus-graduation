@@ -26,6 +26,7 @@ import ru.practicum.user.service.UserService;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -158,7 +159,6 @@ public class EventServiceImp implements EventService {
             throw new BadRequestException("Некорректный интервал дат");
         }
 
-        Sort sort = null;
         Specification<Event> specification = Specification.where(null);
 
         if (param.getText() != null && !param.getText().isBlank())
@@ -171,21 +171,17 @@ public class EventServiceImp implements EventService {
             specification = specification.and(byRangeStart(param.getRangeStart()));
         if (param.getRangeEnd() != null)
             specification = specification.and(byRangeEnd(param.getRangeEnd()));
-        if (param.getSort() != null && !param.getSort().isBlank()) {
-            if (param.getSort().equals("EVENT_DATE"))
-                sort = Sort.by("eventDate");
-            else if (param.getSort().equals("VIEWS"))
-                sort = Sort.by(Sort.Direction.DESC, "views");
+        if (param.getSort() != null && !param.getSort().isBlank()
+                && !param.getSort().equals("EVENT_DATE")
+                && !param.getSort().equals("VIEWS")) {
+            throw new BadRequestException("Некорректный параметр sort");
         }
 
         specification = specification.and(byStates(param.getStates()));
-
-        Pageable pageable = sort == null
-                ? PageRequest.of(param.getFrom() / param.getSize(), param.getSize())
-                : PageRequest.of(param.getFrom() / param.getSize(), param.getSize(), sort);
-
-        List<Event> events = eventRepository.findAll(specification, pageable).stream().toList();
-
+        Sort repoSort = "EVENT_DATE".equals(param.getSort())
+                ? Sort.by("eventDate")
+                : Sort.unsorted();
+        List<Event> events = eventRepository.findAll(specification, repoSort);
         List<Event> enrichedEvents = updateEventFieldStats(events);
 
         if (param.getOnlyAvailable() != null && param.getOnlyAvailable()) {
@@ -194,7 +190,20 @@ public class EventServiceImp implements EventService {
                     .toList();
         }
 
-        return enrichedEvents.stream()
+        if ("VIEWS".equals(param.getSort())) {
+            enrichedEvents = enrichedEvents.stream()
+                    .sorted(Comparator.comparing(Event::getViews, Comparator.nullsLast(Long::compareTo)).reversed())
+                    .toList();
+        }
+
+        int from = Math.max(param.getFrom(), 0);
+        if (from >= enrichedEvents.size()) {
+            return List.of();
+        }
+        int toIndex = Math.min(from + param.getSize(), enrichedEvents.size());
+        List<Event> pagedEvents = enrichedEvents.subList(from, toIndex);
+
+        return pagedEvents.stream()
                 .map(EventMapper::mapToEventShortDto)
                 .toList();
     }

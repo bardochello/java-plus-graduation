@@ -16,7 +16,6 @@ import java.util.List;
 
 /**
  * Контроллер для операций с заявками на участие в событиях.
- * Обслуживает как /users/{userId}/requests так и /users/{userId}/events/{eventId}/requests
  */
 @Validated
 @RestController
@@ -30,13 +29,6 @@ public class RequestController {
         return requestService.getRequestsByUserId(userId);
     }
 
-    /**
-     * Добавить заявку на участие в событии.
-     *
-     * @param userId ID текущего пользователя
-     * @param eventId ID события (обязательный параметр)
-     * @return ParticipationRequestDto - созданная заявка
-     */
     @PostMapping("/users/{userId}/requests")
     @ResponseStatus(HttpStatus.CREATED)
     public ParticipationRequestDto createRequest(
@@ -57,12 +49,15 @@ public class RequestController {
         return requestService.getRequestsByEventId(userId, eventId);
     }
 
+    /**
+     * Обновление статуса заявок на участие в событии.
+     * КРИТИЧНО: updateRequest должен содержать requestIds и status!
+     */
     @PatchMapping("/users/{userId}/events/{eventId}/requests")
     public EventRequestStatusUpdateResult updateRequestStatus(
             @PathVariable @Positive Long userId,
             @PathVariable @Positive Long eventId,
-            @RequestBody(required = false) EventRequestStatusUpdateRequest updateRequest) {
-        return requestService.updateRequestStatus(userId, eventId,
-                updateRequest != null ? updateRequest : new EventRequestStatusUpdateRequest());
+            @RequestBody @NotNull(message = "Request body is required") @Valid EventRequestStatusUpdateRequest updateRequest) {
+        return requestService.updateRequestStatus(userId, eventId, updateRequest);
     }
 }

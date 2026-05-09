@@ -211,7 +211,7 @@ public class RequestServiceImpl implements RequestService {
     public List<ParticipationRequestDto> getRequestsByEventIdIn(List<Long> eventIds) {
         log.info("========== GET CONFIRMED REQUESTS FOR EVENTS ==========");
         log.info("Requesting for eventIds: {}", eventIds);
-        
+
         List<Request> allRequests = requestRepository.findAllByEventIdInAndStatus(eventIds, Status.CONFIRMED);
         log.info("Step 1 - Total CONFIRMED requests found in DB: {}", allRequests.size());
 
