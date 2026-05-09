@@ -19,7 +19,7 @@ public class EventInternalController {
 
     private final EventService eventService;
 
-    @GetMapping("/internal/events/{eventId}")
+    @GetMapping("/{eventId}")
     public EventInternalDto getEventById(@PathVariable Long eventId) {
         Event event = eventService.getEventById(eventId);
         return EventInternalDto.builder()

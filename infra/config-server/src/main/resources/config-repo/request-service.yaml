@@ -2,6 +2,10 @@ server:
   port: 0
 
 spring:
+  cloud:
+    loadbalancer:
+      cache:
+        enabled: false
   datasource:
     driverClassName: org.postgresql.Driver
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}

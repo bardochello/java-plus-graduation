@@ -5,6 +5,9 @@ spring:
   application:
     name: gateway-server
   cloud:
+    loadbalancer:
+      cache:
+        enabled: false
     gateway:
       discovery:
         locator:
