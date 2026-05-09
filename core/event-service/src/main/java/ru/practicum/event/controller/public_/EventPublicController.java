@@ -49,7 +49,7 @@ public class EventPublicController {
                 .text(text)
                 .categories(categories)
                 .paid(paid)
-                .rangeStart(rangeStart == null && rangeEnd == null ? LocalDateTime.now() : rangeStart)
+                .rangeStart(rangeStart == null ? LocalDateTime.now() : rangeStart)  // ← ИСПРАВЛЕНО
                 .rangeEnd(rangeEnd)
                 .onlyAvailable(onlyAvailable)
                 .sort(sort)
@@ -59,7 +59,6 @@ public class EventPublicController {
 
         List<EventShortDto> events = eventService.getEventsByPublic(param);
 
-        // Используем новый метод addHit
         statsClient.addHit(EndpointHitDto.builder()
                 .app(APPLICATION)
                 .uri(request.getRequestURI())
