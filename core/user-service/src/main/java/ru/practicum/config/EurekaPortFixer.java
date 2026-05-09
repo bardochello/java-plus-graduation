@@ -6,16 +6,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.cloud.netflix.eureka.EurekaInstanceConfigBean;
-import org.springframework.cloud.netflix.eureka.serviceregistry.EurekaRegistration;
-import org.springframework.cloud.netflix.eureka.serviceregistry.EurekaServiceRegistry;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Fixes Eureka registration port when server.port=0 (random port).
- * When Tomcat starts on a random port, Eureka may register with default port 80.
- * This listener detects the real port and forces re-registration with the correct port.
- */
+import java.net.InetAddress;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -23,45 +18,40 @@ public class EurekaPortFixer implements ApplicationListener<WebServerInitialized
 
     private final EurekaInstanceConfigBean eurekaInstanceConfig;
     private final ApplicationInfoManager applicationInfoManager;
-    private final EurekaServiceRegistry eurekaServiceRegistry;
-    private final EurekaRegistration eurekaRegistration;
 
     @Override
     public void onApplicationEvent(WebServerInitializedEvent event) {
         int realPort = event.getWebServer().getPort();
-        int registeredPort = eurekaInstanceConfig.getNonSecurePort();
-
-        log.info("WebServer started on port {}. Eureka has port {}.", realPort, registeredPort);
 
         if (realPort <= 0) {
-            log.warn("Invalid real port: {}, skipping Eureka port fix", realPort);
+            log.warn("Invalid port {}, skipping Eureka fix", realPort);
             return;
         }
 
-        // Update port in Eureka instance config
-        eurekaInstanceConfig.setNonSecurePort(realPort);
-
-        // Update instance-id to include real port
+        String ip = resolveLocalIp();
         String appName = eurekaInstanceConfig.getAppname().toLowerCase();
+        log.info("Fixing Eureka: app={}, ip={}, port={}", appName, ip, realPort);
+
+        eurekaInstanceConfig.setNonSecurePort(realPort);
+        eurekaInstanceConfig.setPreferIpAddress(true);
+        eurekaInstanceConfig.setIpAddress(ip);
+        eurekaInstanceConfig.setHostname(ip);
         eurekaInstanceConfig.setInstanceId(appName + ":" + realPort);
 
-        // Deregister old instance (wrong port) and re-register with correct port
-        try {
-            eurekaServiceRegistry.deregister(eurekaRegistration);
-            log.info("Deregistered old Eureka instance");
-            Thread.sleep(300);
-        } catch (Exception e) {
-            log.debug("Deregister skipped: {}", e.getMessage());
-        }
+        applicationInfoManager.getInfo().setIsDirty();
 
+        applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.STARTING);
+        applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.UP);
+
+        log.info("Eureka registration fixed: {}:{}", ip, realPort);
+    }
+
+    private String resolveLocalIp() {
         try {
-            eurekaServiceRegistry.register(eurekaRegistration);
-            applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.UP);
-            log.info("Re-registered with Eureka on port {}", realPort);
+            return InetAddress.getLocalHost().getHostAddress();
         } catch (Exception e) {
-            log.error("Failed to re-register with Eureka: {}", e.getMessage());
-            // Fallback: just update status which triggers heartbeat with new port
-            applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.UP);
+            log.warn("Could not resolve local IP: {}", e.getMessage());
+            return "127.0.0.1";
         }
     }
 }
