@@ -75,8 +75,8 @@ public class RequestServiceImpl implements RequestService {
     public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
         Request request = requestRepository.findByIdAndRequesterId(requestId, userId)
                 .orElseThrow(() -> new NotFoundResource("Request with id=" + requestId + " was not found"));
-        if (!Status.PENDING.equals(request.getStatus()) && !Status.CANCELED.equals(request.getStatus())) {
-            throw new ConflictResource("Нельзя отменить заявку со статусом " + request.getStatus());
+        if (!Status.PENDING.equals(request.getStatus())) {
+            throw new ConflictResource("Нельзя отменить заявку, не находящуюся в состоянии ожидания");
         }
         request.setStatus(Status.CANCELED);
         return RequestMapper.mapToDto(requestRepository.save(request));
