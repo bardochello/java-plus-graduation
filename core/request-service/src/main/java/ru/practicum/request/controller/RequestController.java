@@ -33,10 +33,7 @@ public class RequestController {
     @ResponseStatus(HttpStatus.CREATED)
     public ParticipationRequestDto createRequest(
             @PathVariable @Positive Long userId,
-            @RequestParam(required = false) Long eventId) {
-        if (eventId == null) {
-            throw new IllegalArgumentException("Required parameter 'eventId' is missing");
-        }
+            @RequestParam Long eventId) {
         if (eventId <= 0) {
             throw new IllegalArgumentException("eventId must be positive");
         }

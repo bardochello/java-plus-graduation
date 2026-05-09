@@ -22,6 +22,9 @@ import ru.practicum.exception.ConflictResource;
 import ru.practicum.exception.NotFoundResource;
 import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.feign.RequestServiceClient;
+import ru.practicum.user.dto.UserDto;
+import ru.practicum.user.feign.UserServiceClient;
+import ru.practicum.user.model.User;
 import ru.practicum.user.service.UserService;
 
 import java.time.LocalDateTime;
@@ -50,6 +53,7 @@ public class EventServiceImp implements EventService {
 
     private final CategoryService categoryService;
     private final UserService userService;
+    private final UserServiceClient userServiceClient;
     private final EventRepository eventRepository;
     private final RequestServiceClient requestServiceClient;
     private final StatsClient statsClient;
@@ -78,7 +82,17 @@ public class EventServiceImp implements EventService {
             throw new BadRequestException("Дата должна быть не ранее текущей + 2 часа");
         }
         eventDto.setCategoryObject(categoryService.getCategoryById(eventDto.getCategory()));
-        eventDto.setInitiatorObject(userService.getUserById(userId));
+
+        UserDto userDto = userServiceClient.getUserById(userId);
+        if (userDto == null) {
+            throw new NotFoundResource("Пользователь с id=" + userId + " не найден");
+        }
+        User initiator = User.builder()
+                .id(userDto.getId())
+                .name(userDto.getName())
+                .email(userDto.getEmail())
+                .build();
+        eventDto.setInitiatorObject(initiator);
 
         Event event = EventMapper.mapFromNewEventDto(eventDto);
         Event savedEvent = eventRepository.save(event);
