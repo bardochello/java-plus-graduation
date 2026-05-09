@@ -13,6 +13,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
@@ -53,7 +54,34 @@ public class ErrorHandler {
     })
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleBadRequest(Exception e) {
-        log.warn("400: {}", e.getMessage());
+        log.warn("400 BAD REQUEST: {}", e.getMessage());
+
+        // Специальная обработка для ConstraintViolationException
+        if (e instanceof ConstraintViolationException) {
+            ConstraintViolationException cve = (ConstraintViolationException) e;
+            String violationMessages = cve.getConstraintViolations().stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect(Collectors.joining(", "));
+            return Map.of(
+                    "status", "BAD_REQUEST",
+                    "reason", "Incorrectly made request.",
+                    "message", violationMessages.isEmpty() ? "Validation failed" : violationMessages,
+                    "timestamp", LocalDateTime.now().format(FORMATTER)
+            );
+        }
+
+        // Специальная обработка для MissingServletRequestParameterException
+        if (e instanceof MissingServletRequestParameterException) {
+            MissingServletRequestParameterException mspe = (MissingServletRequestParameterException) e;
+            return Map.of(
+                    "status", "BAD_REQUEST",
+                    "reason", "Incorrectly made request.",
+                    "message", "Required parameter '" + mspe.getParameterName() + "' is missing",
+                    "timestamp", LocalDateTime.now().format(FORMATTER)
+            );
+        }
+
+        // Универсальная обработка
         return Map.of(
                 "status", "BAD_REQUEST",
                 "reason", "Incorrectly made request.",
@@ -65,7 +93,7 @@ public class ErrorHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleGeneric(Exception e) {
-        log.error("500: {}", e.getMessage(), e);
+        log.error("500 INTERNAL SERVER ERROR: {}", e.getMessage(), e);
         return Map.of(
                 "status", "INTERNAL_SERVER_ERROR",
                 "reason", "An unexpected error occurred.",

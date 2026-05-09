@@ -1,6 +1,7 @@
 package ru.practicum.request.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,17 +25,23 @@ public class RequestController {
 
     private final RequestService requestService;
 
-    // ---- /users/{userId}/requests ----
-
     @GetMapping("/users/{userId}/requests")
     public List<ParticipationRequestDto> getRequests(@PathVariable @Positive Long userId) {
         return requestService.getRequestsByUserId(userId);
     }
 
+    /**
+     * Добавить заявку на участие в событии.
+     *
+     * @param userId ID текущего пользователя
+     * @param eventId ID события (обязательный параметр)
+     * @return ParticipationRequestDto - созданная заявка
+     */
     @PostMapping("/users/{userId}/requests")
     @ResponseStatus(HttpStatus.CREATED)
-    public ParticipationRequestDto createRequest(@PathVariable @Positive Long userId,
-                                                 @RequestParam @Positive Long eventId) {
+    public ParticipationRequestDto createRequest(
+            @PathVariable @Positive Long userId,
+            @RequestParam @NotNull(message = "eventId parameter is required") @Positive Long eventId) {
         return requestService.createRequest(userId, eventId);
     }
 
