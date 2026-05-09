@@ -24,12 +24,12 @@ eureka:
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
+    lease-renewal-interval-in-seconds: 1
+    lease-expiration-duration-in-seconds: 3
   client:
     register-with-eureka: true
     fetch-registry: true
-    registry-fetch-interval-seconds: 10
+    registry-fetch-interval-seconds: 1
 
 spring.cloud.openfeign.circuitbreaker.enabled: false
 
