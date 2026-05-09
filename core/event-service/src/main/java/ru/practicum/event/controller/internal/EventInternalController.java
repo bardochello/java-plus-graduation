@@ -19,10 +19,9 @@ public class EventInternalController {
 
     private final EventService eventService;
 
-    @GetMapping("/{eventId}")
-    public EventInternalDto getEventById(@PathVariable @Positive Long eventId) {
+    @GetMapping("/internal/events/{eventId}")
+    public EventInternalDto getEventById(@PathVariable Long eventId) {
         Event event = eventService.getEventById(eventId);
-
         return EventInternalDto.builder()
                 .id(event.getId())
                 .initiatorId(event.getInitiator().getId())

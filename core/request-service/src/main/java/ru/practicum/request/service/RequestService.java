@@ -13,7 +13,6 @@ public interface RequestService {
 
     List<ParticipationRequestDto> getRequestsByUserId(Long userId);
 
-    /** Алиас для getRequestsByUserId — для совместимости. */
     default List<ParticipationRequestDto> getUserRequests(Long userId) {
         return getRequestsByUserId(userId);
     }

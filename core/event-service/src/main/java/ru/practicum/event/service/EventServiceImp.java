@@ -20,8 +20,6 @@ import ru.practicum.event.utill.State;
 import ru.practicum.exception.BadRequestException;
 import ru.practicum.exception.ConflictResource;
 import ru.practicum.exception.NotFoundResource;
-import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
-import ru.practicum.request.dto.EventRequestStatusUpdateResult;
 import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.feign.RequestServiceClient;
 import ru.practicum.user.service.UserService;
@@ -53,16 +51,6 @@ public class EventServiceImp implements EventService {
     private final EventRepository eventRepository;
     private final RequestServiceClient requestServiceClient;
     private final StatsClient statsClient;
-
-    @Override
-    public List<ParticipationRequestDto> getRequests(long userId, long eventId) {
-        getEventByIdAndInitiatorId(eventId, userId);
-        try {
-            return requestServiceClient.getRequestsByEventId(eventId, userId);
-        } catch (Exception e) {
-            return java.util.Collections.emptyList();
-        }
-    }
 
     @Override
     public EventFullDto get(long userId, long eventId) {
@@ -122,26 +110,6 @@ public class EventServiceImp implements EventService {
         Long confirmedRequests = safeCountConfirmedRequests(eventId);
         Long views = getViewsForEvent(event.getCreatedOn(), eventId);
         return EventMapper.toEventFullDto(updatedEvent, confirmedRequests, views);
-    }
-
-    @Override
-    @Transactional
-    public EventRequestStatusUpdateResult updateRequestStatus(long userId, long eventId,
-                                                              EventRequestStatusUpdateRequest eventRequestStatus,
-                                                              Integer participantLimit, Boolean requestModeration) {
-        // Права проверены в контроллере через getEventByIdAndCheckOwner
-        try {
-            return requestServiceClient.updateRequestStatus(
-                    eventId,
-                    userId,
-                    participantLimit,
-                    requestModeration,
-                    eventRequestStatus);
-        } catch (ConflictResource | NotFoundResource | BadRequestException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Ошибка при обновлении статуса заявок: " + e.getMessage(), e);
-        }
     }
 
     @Override
@@ -247,15 +215,6 @@ public class EventServiceImp implements EventService {
     public Event getEventById(long eventId) {
         return eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundResource("Событие с id=%d не найдено".formatted(eventId)));
-    }
-
-    @Override
-    public Event getEventByIdAndCheckOwner(long userId, long eventId) {
-        Event event = getEventById(eventId);
-        if (event.getInitiator().getId() != userId) {
-            throw new NotFoundResource("Событие с id=%d не найдено или недоступно пользователю".formatted(eventId));
-        }
-        return event;
     }
 
     private Event getEventByIdAndInitiatorId(long eventId, long userId) {
