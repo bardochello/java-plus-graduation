@@ -118,11 +118,11 @@ public class EventServiceImp implements EventService {
         Pageable pageable = PageRequest.of(param.getFrom() / param.getSize(), param.getSize());
         Specification<Event> specification = Specification.where(null);
 
-        if (param.getUsers() != null)
+        if (param.getUsers() != null && !param.getUsers().isEmpty())
             specification = specification.and(byUser(param.getUsers()));
-        if (param.getStates() != null)
+        if (param.getStates() != null && !param.getStates().isEmpty())
             specification = specification.and(byStates(param.getStates()));
-        if (param.getCategories() != null)
+        if (param.getCategories() != null && !param.getCategories().isEmpty())
             specification = specification.and(byCategories(param.getCategories()));
         if (param.getRangeStart() != null)
             specification = specification.and(byRangeStart(param.getRangeStart()));
@@ -163,7 +163,7 @@ public class EventServiceImp implements EventService {
 
         if (param.getText() != null && !param.getText().isBlank())
             specification = specification.and(byText(param.getText()));
-        if (param.getCategories() != null)
+        if (param.getCategories() != null && !param.getCategories().isEmpty())
             specification = specification.and(byCategories(param.getCategories()));
         if (param.getPaid() != null)
             specification = specification.and(byPaid(param.getPaid()));

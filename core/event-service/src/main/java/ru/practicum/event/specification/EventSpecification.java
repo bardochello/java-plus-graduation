@@ -42,7 +42,8 @@ public class EventSpecification {
 
         return (root, cq, cb) -> cb.or(
                 cb.like(cb.lower(root.get("annotation")), searchPattern),
-                cb.like(cb.lower(root.get("description")), searchPattern)
+                cb.like(cb.lower(root.get("description")), searchPattern),
+                cb.like(cb.lower(root.get("title")), searchPattern)
         );
     }
 

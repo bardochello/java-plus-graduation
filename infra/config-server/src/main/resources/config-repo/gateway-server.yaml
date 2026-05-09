@@ -24,23 +24,22 @@ spring:
           predicates:
             - Path=/admin/users
 
+        # Заявки на участие должны попадать в request-service раньше широкого /users/** у event-service
         - id: request-service-event-requests
           uri: lb://request-service
+          order: -100
           predicates:
             - Path=/users/*/events/*/requests
 
         - id: request-service-users
           uri: lb://request-service
+          order: -100
           predicates:
-            - Path=/users/*/requests/**
-
-        - id: request-service-users-root
-          uri: lb://request-service
-          predicates:
-            - Path=/users/*/requests
+            - Path=/users/*/requests,/users/*/requests/**
 
         - id: event-service
           uri: lb://event-service
+          order: 0
           predicates:
             - Path=/users/**,/categories/**,/admin/**,/events/**,/compilations/**
 
