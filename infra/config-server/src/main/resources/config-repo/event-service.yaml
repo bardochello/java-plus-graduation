@@ -22,9 +22,8 @@ spring:
 
 eureka:
   instance:
-    prefer-ip-address: false
-    hostname: ${spring.application.name}
-    instance-id: ${spring.application.name}:${server.port:8081}
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
   client:
@@ -53,3 +52,12 @@ resilience4j:
           - ru.practicum.exception.NotFoundResource
           - ru.practicum.exception.BadRequestException
           - ru.practicum.exception.ForbiddenResource
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

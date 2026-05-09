@@ -24,9 +24,7 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
   instance:
-    prefer-ip-address: false
-    hostname: ${spring.application.name}
-    instance-id: ${spring.application.name}:${server.port:8081}
+    prefer-ip-address: true
 
 feign:
   okhttp:
