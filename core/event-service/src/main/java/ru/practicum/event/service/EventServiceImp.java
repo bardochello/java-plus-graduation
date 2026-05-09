@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.StatsClient;
 import ru.practicum.category.service.CategoryService;
+import ru.practicum.debug.AgentNdjsonLog;
 import ru.practicum.event.dto.*;
 import ru.practicum.event.mapper.EventMapper;
 import ru.practicum.event.model.Event;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -192,6 +194,15 @@ public class EventServiceImp implements EventService {
         List<Event> events = eventRepository.findAll(specification, repoSort);
         List<Event> enrichedEvents = updateEventFieldStats(events);
 
+        // #region agent log
+        AgentNdjsonLog.log("H3", "EventServiceImp.java:getEventsByPublic", "after_db_enrich", "pre-fix",
+                String.format(Locale.US, "{\"dbCount\":%d,\"enriched\":%d,\"onlyAvailableParam\":%s,\"sort\":%s}",
+                        events.size(),
+                        enrichedEvents.size(),
+                        param.getOnlyAvailable() == null ? "null" : param.getOnlyAvailable().toString(),
+                        param.getSort() == null ? "null" : "\"" + param.getSort().replace("\"", "'") + "\""));
+        // #endregion
+
         if (param.getOnlyAvailable() != null && param.getOnlyAvailable()) {
             enrichedEvents = enrichedEvents.stream()
                     .filter(e -> {
@@ -212,10 +223,22 @@ public class EventServiceImp implements EventService {
 
         int from = Math.max(param.getFrom(), 0);
         if (from >= enrichedEvents.size()) {
+            // #region agent log
+            AgentNdjsonLog.log("H4", "EventServiceImp.java:getEventsByPublic", "empty_page", "pre-fix",
+                    String.format(Locale.US, "{\"from\":%d,\"totalAfterFilters\":%d,\"size\":%d}",
+                            from, enrichedEvents.size(), param.getSize()));
+            // #endregion
             return List.of();
         }
         int toIndex = Math.min(from + param.getSize(), enrichedEvents.size());
         List<Event> pagedEvents = enrichedEvents.subList(from, toIndex);
+
+        // #region agent log
+        long firstId = pagedEvents.isEmpty() ? -1L : pagedEvents.getFirst().getId();
+        AgentNdjsonLog.log("H3", "EventServiceImp.java:getEventsByPublic", "return_page", "pre-fix",
+                String.format(Locale.US, "{\"pagedCount\":%d,\"from\":%d,\"firstEventId\":%d}",
+                        pagedEvents.size(), from, firstId));
+        // #endregion
 
         return pagedEvents.stream()
                 .map(EventMapper::mapToEventShortDto)

@@ -10,12 +10,14 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.StatsClient;
 import ru.practicum.event.dto.EventFullDto;
+import ru.practicum.debug.AgentNdjsonLog;
 import ru.practicum.event.dto.EventShortDto;
 import ru.practicum.event.service.EventService;
 import ru.practicum.event.utill.EventGetPublicParam;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Публичный контроллер для операций с событиями.
@@ -44,6 +46,26 @@ public class EventPublicController {
             @RequestParam(defaultValue = "0") @PositiveOrZero int from,
             @RequestParam(defaultValue = "10") @Positive int size,
             HttpServletRequest request) {
+
+        // #region agent log
+        String qs = request.getQueryString();
+        AgentNdjsonLog.log("H3", "EventPublicController.java:getEvents", "http_params", "pre-fix",
+                String.format(Locale.US,
+                        "{\"queryStringLen\":%d,\"textLen\":%d,\"categoriesNull\":%b,\"categoriesSize\":%d,"
+                                + "\"paid\":%s,\"rangeStartNull\":%b,\"rangeEndNull\":%b,\"onlyAvailable\":%s,"
+                                + "\"sortNull\":%b,\"from\":%d,\"size\":%d}",
+                        qs == null ? 0 : qs.length(),
+                        text == null ? 0 : text.length(),
+                        categories == null,
+                        categories == null ? 0 : categories.size(),
+                        paid == null ? "null" : paid.toString(),
+                        rangeStart == null,
+                        rangeEnd == null,
+                        onlyAvailable.toString(),
+                        sort == null,
+                        from,
+                        size));
+        // #endregion
 
         EventGetPublicParam param = EventGetPublicParam.builder()
                 .text(text)

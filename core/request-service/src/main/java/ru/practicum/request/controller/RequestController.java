@@ -9,10 +9,12 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
 import ru.practicum.request.dto.EventRequestStatusUpdateResult;
+import ru.practicum.debug.AgentNdjsonLog;
 import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.service.RequestService;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Контроллер для операций с заявками на участие в событиях.
@@ -34,6 +36,11 @@ public class RequestController {
     public ParticipationRequestDto createRequest(
             @PathVariable @Positive Long userId,
             @RequestParam(required = false) Long eventId) {
+        // #region agent log
+        AgentNdjsonLog.log("H1", "RequestController.java:createRequest", "enter", "pre-fix",
+                String.format(Locale.US, "{\"userId\":%d,\"eventIdNull\":%b}",
+                        userId, eventId == null));
+        // #endregion
         if (eventId == null) {
             throw new IllegalArgumentException("Required parameter 'eventId' is missing");
         }
