@@ -29,6 +29,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -163,8 +164,14 @@ public class EventServiceImp implements EventService {
 
         if (param.getText() != null && !param.getText().isBlank())
             specification = specification.and(byText(param.getText()));
-        if (param.getCategories() != null && !param.getCategories().isEmpty())
-            specification = specification.and(byCategories(param.getCategories()));
+        if (param.getCategories() != null && !param.getCategories().isEmpty()) {
+            List<Long> categoryIds = param.getCategories().stream()
+                    .filter(Objects::nonNull)
+                    .toList();
+            if (!categoryIds.isEmpty()) {
+                specification = specification.and(byCategories(categoryIds));
+            }
+        }
         if (param.getPaid() != null)
             specification = specification.and(byPaid(param.getPaid()));
         if (param.getRangeStart() != null)
@@ -178,21 +185,28 @@ public class EventServiceImp implements EventService {
         }
 
         specification = specification.and(byStates(param.getStates()));
-        Sort repoSort = "EVENT_DATE".equals(param.getSort())
-                ? Sort.by("eventDate")
-                : Sort.unsorted();
+        // VIEWS: порядок задаётся после обогащения просмотрами; иначе — дата события по возрастанию (как в типовой выдаче)
+        Sort repoSort = "VIEWS".equals(param.getSort())
+                ? Sort.unsorted()
+                : Sort.by(Sort.Order.asc("eventDate"), Sort.Order.asc("id"));
         List<Event> events = eventRepository.findAll(specification, repoSort);
         List<Event> enrichedEvents = updateEventFieldStats(events);
 
         if (param.getOnlyAvailable() != null && param.getOnlyAvailable()) {
             enrichedEvents = enrichedEvents.stream()
-                    .filter(e -> e.getParticipantLimit() == 0 || e.getConfirmedRequests() < e.getParticipantLimit())
+                    .filter(e -> {
+                        Integer limit = e.getParticipantLimit();
+                        long confirmed = Optional.ofNullable(e.getConfirmedRequests()).orElse(0L);
+                        return limit == null || limit == 0 || confirmed < limit;
+                    })
                     .toList();
         }
 
         if ("VIEWS".equals(param.getSort())) {
             enrichedEvents = enrichedEvents.stream()
-                    .sorted(Comparator.comparing(Event::getViews, Comparator.nullsLast(Long::compareTo)).reversed())
+                    .sorted(Comparator
+                            .comparing(Event::getViews, Comparator.nullsLast(Long::compareTo)).reversed()
+                            .thenComparing(Event::getId))
                     .toList();
         }
 
