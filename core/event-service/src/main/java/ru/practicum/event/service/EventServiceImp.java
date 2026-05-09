@@ -293,14 +293,29 @@ public class EventServiceImp implements EventService {
 
         List<Long> eventIds = List.copyOf(eventMap.keySet());
 
-        Map<Long, Long> confirmedByEvent = eventIds.stream()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        this::safeCountConfirmedRequests
-                ));
+        // Основной способ — bulk-запрос (самый эффективный)
+        Map<Long, Long> confirmedByEvent;
+        try {
+            List<ParticipationRequestDto> confirmedRequestsList = requestServiceClient
+                    .getConfirmedRequestsByEventIds(eventIds);
+
+            confirmedByEvent = confirmedRequestsList.stream()
+                    .collect(Collectors.groupingBy(
+                            ParticipationRequestDto::getEvent,
+                            Collectors.counting()
+                    ));
+        } catch (Exception e) {
+            // Fallback на по одному событию
+            confirmedByEvent = eventIds.stream()
+                    .collect(Collectors.toMap(
+                            Function.identity(),
+                            this::safeCountConfirmedRequests
+                    ));
+        }
 
         final Map<Long, Long> finalConfirmed = confirmedByEvent;
 
+        // Статистика просмотров
         List<String> listUrl = eventIds.stream()
                 .map(EVENT_URI_PATTERN::formatted)
                 .collect(Collectors.toList());
