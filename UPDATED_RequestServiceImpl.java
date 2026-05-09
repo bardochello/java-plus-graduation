@@ -225,25 +225,25 @@ public class RequestServiceImpl implements RequestService {
     public List<ParticipationRequestDto> getRequestsByEventIdIn(List<Long> eventIds) {
         log.info("===== GETTING CONFIRMED REQUESTS =====");
         log.info("Requesting confirmed requests for eventIds: {}", eventIds);
-
+        
         List<Request> allRequests = requestRepository.findAllByEventIdInAndStatus(eventIds, Status.CONFIRMED);
         log.info("Total CONFIRMED requests found in DB: {}", allRequests.size());
-
+        
         // Логирование каждого найденного запроса для отладки
         for (Request req : allRequests) {
             log.info("Found CONFIRMED request: id={}, eventId={}, requesterId={}, status={}",
                     req.getId(), req.getEventId(), req.getRequesterId(), req.getStatus());
         }
-
+        
         List<ParticipationRequestDto> result = allRequests.stream()
                 .map(RequestMapper::mapToDto)
                 .toList();
-
+        
         log.info("Converted to DTOs: {}", result.size());
         for (ParticipationRequestDto dto : result) {
             log.info("DTO: id={}, event={}, status={}", dto.getId(), dto.getEvent(), dto.getStatus());
         }
-
+        
         log.info("===== END GETTING CONFIRMED REQUESTS =====");
         return result;
     }
