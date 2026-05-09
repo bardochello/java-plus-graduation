@@ -1,12 +1,10 @@
 package ru.practicum.request.feign;
 
-import org.springframework.stereotype.Component;
 import ru.practicum.request.dto.EventDto;
 
 /**
- * Fallback для EventServiceClient при недоступности event-service.
+ * Fallback для EventServiceClient.
  */
-@Component
 public class EventServiceClientFallback implements EventServiceClient {
 
     @Override

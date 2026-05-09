@@ -17,13 +17,21 @@ spring:
 
 eureka:
   instance:
-    prefer-ip-address: false
-    hostname: ${spring.application.name}
-    instance-id: ${spring.application.name}:${server.port:8082}
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
   client:
     register-with-eureka: true
     fetch-registry: true
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://localhost:8761/eureka/}
 
-spring.cloud.openfeign.circuitbreaker.enabled: true
+spring.cloud.openfeign.circuitbreaker.enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

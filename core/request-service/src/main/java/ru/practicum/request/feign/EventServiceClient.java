@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import ru.practicum.request.dto.EventDto;
 
 /**
- * Feign-клиент для получения данных о событиях из main-service.
+ * Feign-клиент для получения данных о событиях из event-service.
  */
-@FeignClient(name = "event-service", fallback = EventServiceClientFallback.class)
+@FeignClient(name = "event-service")
 public interface EventServiceClient {
 
     @GetMapping("/internal/events/{eventId}")

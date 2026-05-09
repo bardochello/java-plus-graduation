@@ -21,8 +21,14 @@ public class EurekaPortFixer implements ApplicationListener<WebServerInitialized
 
     @Override
     public void onApplicationEvent(WebServerInitializedEvent event) {
-        int realPort = event.getWebServer().getPort();
+        try {
+            fixEurekaRegistration(event.getWebServer().getPort());
+        } catch (Exception e) {
+            log.error("EurekaPortFixer failed (non-critical): {}", e.getMessage(), e);
+        }
+    }
 
+    private void fixEurekaRegistration(int realPort) {
         if (realPort <= 0) {
             log.warn("Invalid port {}, skipping Eureka fix", realPort);
             return;
