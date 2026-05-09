@@ -37,42 +37,35 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public ParticipationRequestDto createRequest(Long userId, Long eventId) {
-        log.info("Creating request: userId={}, eventId={}", userId, eventId);
+        log.info("=== CREATE REQUEST START: userId={}, eventId={} ===", userId, eventId);
 
         EventDto event = getEventOrThrow(eventId);
-        log.debug("Event found: state={}, requestModeration={}, participantLimit={}",
-                event.getState(), event.getRequestModeration(), event.getParticipantLimit());
 
         if (event.getInitiatorId().equals(userId)) {
-            log.warn("Event initiator {} tried to create request for their own event {}", userId, eventId);
+            log.warn("Event initiator cannot create request");
             throw new ConflictResource("Инициатор события не может добавить запрос на участие в своём событии");
         }
         if (!"PUBLISHED".equals(event.getState())) {
-            log.warn("Cannot create request for unpublished event: state={}", event.getState());
+            log.warn("Event is not published");
             throw new ConflictResource("Нельзя участвовать в неопубликованном событии");
         }
         if (requestRepository.existsByRequesterIdAndEventId(userId, eventId)) {
-            log.warn("Request already exists: userId={}, eventId={}", userId, eventId);
+            log.warn("Request already exists");
             throw new ConflictResource("Заявка уже существует");
         }
 
         Long confirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         confirmedCount = confirmedCount != null ? confirmedCount : 0L;
 
-        log.debug("Confirmed requests count for event {}: {}", eventId, confirmedCount);
-
         if (event.getParticipantLimit() != null && event.getParticipantLimit() > 0
                 && confirmedCount >= event.getParticipantLimit()) {
-            log.warn("Participant limit reached: eventId={}, limit={}, confirmed={}",
-                    eventId, event.getParticipantLimit(), confirmedCount);
+            log.warn("Participant limit reached");
             throw new ConflictResource("Достигнут лимит участников события");
         }
 
         Status status = (Boolean.FALSE.equals(event.getRequestModeration())
                 || (event.getParticipantLimit() != null && event.getParticipantLimit() == 0))
                 ? Status.CONFIRMED : Status.PENDING;
-
-        log.info("Creating request with status: {}", status);
 
         Request request = Request.builder()
                 .created(LocalDateTime.now())
@@ -82,7 +75,7 @@ public class RequestServiceImpl implements RequestService {
                 .build();
 
         Request savedRequest = requestRepository.save(request);
-        log.info("Request created: id={}, status={}", savedRequest.getId(), savedRequest.getStatus());
+        log.info("=== CREATE REQUEST END: id={}, status={} ===", savedRequest.getId(), savedRequest.getStatus());
 
         return RequestMapper.mapToDto(savedRequest);
     }
@@ -90,16 +83,12 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public ParticipationRequestDto cancelRequest(Long userId, Long requestId) {
-        log.info("Canceling request: userId={}, requestId={}", userId, requestId);
+        log.info("Canceling request: id={}", requestId);
 
         Request request = requestRepository.findByIdAndRequesterId(requestId, userId)
-                .orElseThrow(() -> {
-                    log.error("Request not found: id={}, userId={}", requestId, userId);
-                    return new NotFoundResource("Request with id=" + requestId + " was not found");
-                });
+                .orElseThrow(() -> new NotFoundResource("Request with id=" + requestId + " was not found"));
 
         if (!Status.PENDING.equals(request.getStatus())) {
-            log.warn("Cannot cancel request with status: {}", request.getStatus());
             throw new ConflictResource("Нельзя отменить заявку, не находящуюся в состоянии ожидания");
         }
 
@@ -112,7 +101,7 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     public List<ParticipationRequestDto> getRequestsByEventId(Long userId, Long eventId) {
-        log.debug("Getting requests for event {}: userId={}", eventId, userId);
+        log.debug("Getting requests for event {}", eventId);
         return requestRepository.findByEventId(eventId).stream()
                 .map(RequestMapper::mapToDto)
                 .toList();
@@ -122,20 +111,15 @@ public class RequestServiceImpl implements RequestService {
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
                                                               EventRequestStatusUpdateRequest updateRequest) {
-        log.info("Updating request status: userId={}, eventId={}, newStatus={}",
-                userId, eventId, updateRequest.getStatus());
+        log.info("=== UPDATE REQUEST STATUS START: eventId={}, status={} ===", eventId, updateRequest.getStatus());
 
         EventDto event = getEventOrThrow(eventId);
-        log.debug("Event found: initiatorId={}, participantLimit={}, requestModeration={}",
-                event.getInitiatorId(), event.getParticipantLimit(), event.getRequestModeration());
 
         if (!event.getInitiatorId().equals(userId)) {
-            log.error("User {} is not initiator of event {}", userId, eventId);
             throw new NotFoundResource("Событие " + eventId + " не найдено или недоступно пользователю " + userId);
         }
 
         int limit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
-        log.debug("Event limit: {}", limit);
 
         List<Long> requestIds = updateRequest.getRequestIds();
         if (requestIds == null || requestIds.isEmpty()) {
@@ -143,28 +127,26 @@ public class RequestServiceImpl implements RequestService {
             return new EventRequestStatusUpdateResult(List.of(), List.of());
         }
 
+        log.info("Processing {} requests", requestIds.size());
+
         List<Request> requests = requestRepository.findByIdInAndEventId(requestIds, eventId);
-        log.debug("Found {} requests for event {}", requests.size(), eventId);
 
         if (requests.size() != requestIds.size()) {
-            log.error("Not all requests found: expected={}, found={}", requestIds.size(), requests.size());
             throw new NotFoundResource("Не все заявки найдены для события " + eventId);
         }
 
         for (Request req : requests) {
             if (!Status.PENDING.equals(req.getStatus())) {
-                log.warn("Request {} has status {}, only PENDING can be updated", req.getId(), req.getStatus());
                 throw new ConflictResource("Можно изменять статус только у заявок в состоянии PENDING");
             }
         }
 
         Long countResult = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         long currentConfirmed = countResult != null ? countResult : 0L;
-        log.debug("Current confirmed requests: {}", currentConfirmed);
+        log.info("Current confirmed count: {}", currentConfirmed);
 
         if (Status.CONFIRMED.equals(updateRequest.getStatus())
                 && limit > 0 && currentConfirmed >= limit) {
-            log.error("Participant limit already reached: limit={}, confirmed={}", limit, currentConfirmed);
             throw new ConflictResource("The participant limit has been reached");
         }
 
@@ -174,37 +156,42 @@ public class RequestServiceImpl implements RequestService {
         for (Request req : requests) {
             if (Status.CONFIRMED.equals(updateRequest.getStatus())) {
                 if (limit > 0 && currentConfirmed >= limit) {
-                    log.debug("Limit reached, rejecting request {}", req.getId());
+                    log.info("Rejecting request {} due to limit", req.getId());
                     req.setStatus(Status.REJECTED);
-                    rejectedList.add(RequestMapper.mapToDto(requestRepository.save(req)));
+                    requestRepository.save(req);
+                    rejectedList.add(RequestMapper.mapToDto(req));
                 } else {
-                    log.debug("Approving request {}", req.getId());
+                    log.info("Accepting request {}", req.getId());
                     req.setStatus(Status.CONFIRMED);
-                    confirmedList.add(RequestMapper.mapToDto(requestRepository.save(req)));
+                    requestRepository.save(req);
+                    confirmedList.add(RequestMapper.mapToDto(req));
                     currentConfirmed++;
                 }
             } else {
-                log.debug("Rejecting request {}", req.getId());
+                log.info("Rejecting request {}", req.getId());
                 req.setStatus(Status.REJECTED);
-                rejectedList.add(RequestMapper.mapToDto(requestRepository.save(req)));
+                requestRepository.save(req);
+                rejectedList.add(RequestMapper.mapToDto(req));
             }
         }
 
+        // Auto-reject remaining PENDING requests if limit is reached
         if (limit > 0 && currentConfirmed >= limit) {
-            log.info("Limit reached, auto-rejecting remaining PENDING requests");
             List<Request> pendingRequests = requestRepository.findByEventId(eventId).stream()
                     .filter(r -> Status.PENDING.equals(r.getStatus()))
                     .toList();
 
             for (Request pending : pendingRequests) {
-                log.debug("Auto-rejecting pending request {}", pending.getId());
+                log.info("Auto-rejecting pending request {}", pending.getId());
                 pending.setStatus(Status.REJECTED);
                 requestRepository.save(pending);
             }
         }
 
-        log.info("Request status update completed: confirmed={}, rejected={}",
-                confirmedList.size(), rejectedList.size());
+        // Verify the counts
+        Long finalConfirmedCount = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
+        log.info("=== UPDATE REQUEST STATUS END: confirmed={}, rejected={}, final_db_count={} ===",
+                confirmedList.size(), rejectedList.size(), finalConfirmedCount);
 
         return EventRequestStatusUpdateResult.builder()
                 .confirmedRequests(confirmedList)
@@ -214,52 +201,53 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     public Long countConfirmedRequests(Long eventId) {
-        log.debug("Counting confirmed requests for event {}", eventId);
         Long count = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         Long result = count != null ? count : 0L;
-        log.debug("Confirmed requests count for event {}: {}", eventId, result);
+        log.info("Count confirmed requests for eventId {}: {}", eventId, result);
         return result;
     }
 
     @Override
     public List<ParticipationRequestDto> getRequestsByEventIdIn(List<Long> eventIds) {
-        log.info("===== GETTING CONFIRMED REQUESTS =====");
-        log.info("Requesting confirmed requests for eventIds: {}", eventIds);
-
+        log.info("========== GET CONFIRMED REQUESTS FOR EVENTS ==========");
+        log.info("Requesting for eventIds: {}", eventIds);
+        
         List<Request> allRequests = requestRepository.findAllByEventIdInAndStatus(eventIds, Status.CONFIRMED);
-        log.info("Total CONFIRMED requests found in DB: {}", allRequests.size());
+        log.info("Step 1 - Total CONFIRMED requests found in DB: {}", allRequests.size());
 
-        // Логирование каждого найденного запроса для отладки
         for (Request req : allRequests) {
-            log.info("Found CONFIRMED request: id={}, eventId={}, requesterId={}, status={}",
-                    req.getId(), req.getEventId(), req.getRequesterId(), req.getStatus());
+            log.info("  -> Request: id={}, eventId={}, status={}", req.getId(), req.getEventId(), req.getStatus());
         }
+
 
         List<ParticipationRequestDto> result = allRequests.stream()
                 .map(RequestMapper::mapToDto)
                 .toList();
 
-        log.info("Converted to DTOs: {}", result.size());
+        log.info("Step 3 - Converted to DTOs: {}", result.size());
         for (ParticipationRequestDto dto : result) {
-            log.info("DTO: id={}, event={}, status={}", dto.getId(), dto.getEvent(), dto.getStatus());
+            log.info("  -> DTO: id={}, event={}, status={}", dto.getId(), dto.getEvent(), dto.getStatus());
         }
 
-        log.info("===== END GETTING CONFIRMED REQUESTS =====");
+        for (Long eventId : eventIds) {
+            long countForEvent = result.stream()
+                    .filter(r -> r.getEvent().equals(eventId))
+                    .count();
+            log.info("Step 4 - Event {}: {} confirmed requests", eventId, countForEvent);
+        }
+
+        log.info("========== RETURNING {} REQUESTS ==========", result.size());
         return result;
     }
 
     private EventDto getEventOrThrow(Long eventId) {
         try {
-            log.debug("Fetching event details: {}", eventId);
             EventDto event = eventServiceClient.getEventById(eventId);
             if (event == null) {
-                log.error("Event not found: {}", eventId);
                 throw new NotFoundResource("Event with id=" + eventId + " not found");
             }
-            log.debug("Event fetched successfully: {}", eventId);
             return event;
         } catch (Exception e) {
-            log.error("Failed to fetch event: {}", eventId, e);
             if (e instanceof NotFoundResource) {
                 throw (NotFoundResource) e;
             }
