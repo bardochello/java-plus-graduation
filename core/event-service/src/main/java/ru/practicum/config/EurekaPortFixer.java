@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.context.WebServerInitializedEvent;
 import org.springframework.cloud.netflix.eureka.EurekaInstanceConfigBean;
 import org.springframework.context.ApplicationListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
@@ -14,6 +16,7 @@ import java.net.InetAddress;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class EurekaPortFixer implements ApplicationListener<WebServerInitializedEvent> {
 
     private final EurekaInstanceConfigBean eurekaInstanceConfig;
@@ -22,34 +25,30 @@ public class EurekaPortFixer implements ApplicationListener<WebServerInitialized
     @Override
     public void onApplicationEvent(WebServerInitializedEvent event) {
         try {
-            fixEurekaRegistration(event.getWebServer().getPort());
+            int realPort = event.getWebServer().getPort();
+
+            if (realPort <= 0) {
+                log.warn("Invalid port {}, skipping Eureka fix", realPort);
+                return;
+            }
+
+            String ip = resolveLocalIp();
+            String appName = eurekaInstanceConfig.getAppname().toLowerCase();
+
+            log.info("EurekaPortFixer: app={}, ip={}, port={}", appName, ip, realPort);
+
+            eurekaInstanceConfig.setNonSecurePort(realPort);
+            eurekaInstanceConfig.setPreferIpAddress(true);
+            eurekaInstanceConfig.setIpAddress(ip);
+            eurekaInstanceConfig.setHostname(ip);
+            eurekaInstanceConfig.setInstanceId(appName + ":" + realPort);
+
+            applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.UP);
+
+            log.info("EurekaPortFixer done: {}:{}", ip, realPort);
         } catch (Exception e) {
             log.error("EurekaPortFixer failed (non-critical): {}", e.getMessage(), e);
         }
-    }
-
-    private void fixEurekaRegistration(int realPort) {
-        if (realPort <= 0) {
-            log.warn("Invalid port {}, skipping Eureka fix", realPort);
-            return;
-        }
-
-        String ip = resolveLocalIp();
-        String appName = eurekaInstanceConfig.getAppname().toLowerCase();
-        log.info("Fixing Eureka: app={}, ip={}, port={}", appName, ip, realPort);
-
-        eurekaInstanceConfig.setNonSecurePort(realPort);
-        eurekaInstanceConfig.setPreferIpAddress(true);
-        eurekaInstanceConfig.setIpAddress(ip);
-        eurekaInstanceConfig.setHostname(ip);
-        eurekaInstanceConfig.setInstanceId(appName + ":" + realPort);
-
-        applicationInfoManager.getInfo().setIsDirty();
-
-        applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.STARTING);
-        applicationInfoManager.setInstanceStatus(InstanceInfo.InstanceStatus.UP);
-
-        log.info("Eureka registration fixed: {}:{}", ip, realPort);
     }
 
     private String resolveLocalIp() {
