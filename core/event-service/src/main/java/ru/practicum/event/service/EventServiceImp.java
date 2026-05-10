@@ -2,6 +2,7 @@ package ru.practicum.event.service;
 
 import dto.ViewStatsDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -20,7 +21,6 @@ import ru.practicum.event.utill.State;
 import ru.practicum.exception.BadRequestException;
 import ru.practicum.exception.ConflictResource;
 import ru.practicum.exception.NotFoundResource;
-import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.feign.RequestServiceClient;
 import ru.practicum.user.service.UserService;
 
@@ -37,6 +37,7 @@ import static ru.practicum.event.specification.EventSpecification.*;
 /**
  * Реализация сервиса для работы с событиями.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -293,15 +294,16 @@ public class EventServiceImp implements EventService {
 
         List<Long> eventIds = List.copyOf(eventMap.keySet());
 
-        Map<Long, Long> confirmedByEvent;
-        try {
-            confirmedByEvent = requestServiceClient
-                    .getConfirmedRequestsByEventIds(eventIds)
-                    .stream()
-                    .collect(Collectors.groupingBy(
-                            ParticipationRequestDto::getEvent, Collectors.counting()));
-        } catch (Exception e) {
-            confirmedByEvent = Map.of();
+        // Считаем подтверждённые заявки для каждого события отдельным запросом
+        Map<Long, Long> confirmedByEvent = new java.util.HashMap<>();
+        for (Long eventId : eventIds) {
+            try {
+                Long count = requestServiceClient.countConfirmedRequests(eventId);
+                confirmedByEvent.put(eventId, count != null ? count : 0L);
+            } catch (Exception e) {
+                log.warn("Не удалось получить confirmedRequests для события {}: {}", eventId, e.getMessage());
+                confirmedByEvent.put(eventId, 0L);
+            }
         }
         final Map<Long, Long> finalConfirmed = confirmedByEvent;
 
