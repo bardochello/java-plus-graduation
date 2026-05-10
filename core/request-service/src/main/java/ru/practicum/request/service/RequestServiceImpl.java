@@ -27,6 +27,7 @@ public class RequestServiceImpl implements RequestService {
     private final EventServiceClient eventServiceClient;
 
     @Override
+    @Transactional
     public List<ParticipationRequestDto> getRequestsByUserId(Long userId) {
         return requestRepository.findByRequesterId(userId).stream()
                 .map(RequestMapper::mapToDto)
@@ -80,6 +81,7 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
+    @Transactional
     public List<ParticipationRequestDto> getRequestsByEventId(Long userId, Long eventId) {
         return requestRepository.findByEventId(eventId).stream()
                 .map(RequestMapper::mapToDto)
@@ -162,12 +164,14 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
+    @Transactional
     public Long countConfirmedRequests(Long eventId) {
         Long count = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         return count != null ? count : 0L;
     }
 
     @Override
+    @Transactional
     public List<ParticipationRequestDto> getRequestsByEventIdIn(List<Long> eventIds) {
         return requestRepository.findAllByEventIdInAndStatus(eventIds, Status.CONFIRMED)
                 .stream()
