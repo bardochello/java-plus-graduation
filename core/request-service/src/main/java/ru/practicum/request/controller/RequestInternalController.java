@@ -8,6 +8,7 @@ import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.request.service.RequestService;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Внутренний контроллер — только для межсервисного чтения данных event-service.
@@ -28,5 +29,10 @@ public class RequestInternalController {
     @GetMapping("/confirmed")
     public List<ParticipationRequestDto> getConfirmedRequestsByEventIds(@RequestParam List<Long> eventIds) {
         return requestService.getRequestsByEventIdIn(eventIds);
+    }
+
+    @GetMapping("/confirmed-counts")
+    public Map<Long, Long> countConfirmedByEventIds(@RequestParam List<Long> eventIds) {
+        return requestService.countConfirmedByEventIds(eventIds);
     }
 }

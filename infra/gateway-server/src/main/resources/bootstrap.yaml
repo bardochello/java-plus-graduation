@@ -20,6 +20,9 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
+    loadbalancer:
+      cache:
+        enabled: false
 
 eureka:
   client:
@@ -28,5 +31,8 @@ eureka:
     enabled: true
     register-with-eureka: true
     fetch-registry: true
+    registry-fetch-interval-seconds: 3
   instance:
     prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15

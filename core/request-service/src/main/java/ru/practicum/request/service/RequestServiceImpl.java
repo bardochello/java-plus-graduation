@@ -16,7 +16,9 @@ import ru.practicum.request.utill.Status;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -173,6 +175,22 @@ public class RequestServiceImpl implements RequestService {
                 .stream()
                 .map(RequestMapper::mapToDto)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public Map<Long, Long> countConfirmedByEventIds(List<Long> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> results = requestRepository.countConfirmedByEventIds(eventIds);
+        Map<Long, Long> confirmedMap = new HashMap<>();
+        for (Object[] row : results) {
+            Long eventId = (Long) row[0];
+            Long count = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            confirmedMap.put(eventId, count);
+        }
+        return confirmedMap;
     }
 
     private EventInternalDto getEventOrThrow(Long eventId) {

@@ -51,6 +51,12 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      user-service:
+        condition: service_started
+      event-service:
+        condition: service_started
+      request-service:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 10s

@@ -8,6 +8,7 @@ import ru.practicum.request.dto.ParticipationRequestDto;
 import ru.practicum.exception.FeignClientConfig;
 
 import java.util.List;
+import java.util.Map;
 
 @FeignClient(name = "request-service", configuration = FeignClientConfig.class)
 public interface RequestServiceClient {
@@ -40,4 +41,7 @@ public interface RequestServiceClient {
 
     @GetMapping("/internal/requests/confirmed")
     List<ParticipationRequestDto> getConfirmedRequestsByEventIds(@RequestParam("eventIds") List<Long> eventIds);
+
+    @GetMapping("/internal/requests/confirmed-counts")
+    Map<Long, Long> countConfirmedByEventIds(@RequestParam("eventIds") List<Long> eventIds);
 }

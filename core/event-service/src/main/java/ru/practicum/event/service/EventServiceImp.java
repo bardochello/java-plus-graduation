@@ -149,7 +149,9 @@ public class EventServiceImp implements EventService {
         }
 
         EventMapper.updateEventFromAdminRequest(event, updateEventAdminRequest);
-        return EventMapper.mapToEventFullDto(eventRepository.save(event));
+        Event saved = eventRepository.save(event);
+        Event enriched = updateEventFieldStats(List.of(saved)).getFirst();
+        return EventMapper.mapToEventFullDto(enriched);
     }
 
     @Override
@@ -294,16 +296,12 @@ public class EventServiceImp implements EventService {
 
         List<Long> eventIds = List.copyOf(eventMap.keySet());
 
-        // Считаем подтверждённые заявки для каждого события отдельным запросом
-        Map<Long, Long> confirmedByEvent = new java.util.HashMap<>();
-        for (Long eventId : eventIds) {
-            try {
-                Long count = requestServiceClient.countConfirmedRequests(eventId);
-                confirmedByEvent.put(eventId, count != null ? count : 0L);
-            } catch (Exception e) {
-                log.warn("Не удалось получить confirmedRequests для события {}: {}", eventId, e.getMessage());
-                confirmedByEvent.put(eventId, 0L);
-            }
+        Map<Long, Long> confirmedByEvent;
+        try {
+            confirmedByEvent = requestServiceClient.countConfirmedByEventIds(eventIds);
+        } catch (Exception e) {
+            log.warn("Не удалось получить confirmedRequests для событий {}: {}", eventIds, e.getMessage());
+            confirmedByEvent = Map.of();
         }
         final Map<Long, Long> finalConfirmed = confirmedByEvent;
 
