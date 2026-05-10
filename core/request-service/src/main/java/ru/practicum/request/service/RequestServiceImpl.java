@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.event.dto.EventInternalDto;
 import ru.practicum.request.dto.*;
 import ru.practicum.request.exception.ConflictResource;
 import ru.practicum.request.exception.NotFoundResource;
@@ -37,7 +38,7 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public ParticipationRequestDto createRequest(Long userId, Long eventId) {
-        EventDto event = getEventOrThrow(eventId);
+        EventInternalDto event = getEventOrThrow(eventId);
 
         if (event.getInitiatorId().equals(userId)) {
             throw new ConflictResource("Инициатор события не может добавить запрос на участие в своём событии");
@@ -92,10 +93,8 @@ public class RequestServiceImpl implements RequestService {
     @Transactional
     public EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
                                                               EventRequestStatusUpdateRequest updateRequest) {
-        // Получаем данные события (participantLimit, requestModeration, initiatorId)
-        EventDto event = getEventOrThrow(eventId);
+        EventInternalDto event = getEventOrThrow(eventId);
 
-        // Проверяем что userId — владелец события
         if (!event.getInitiatorId().equals(userId)) {
             throw new NotFoundResource("Событие " + eventId + " не найдено или недоступно пользователю " + userId);
         }
@@ -112,7 +111,6 @@ public class RequestServiceImpl implements RequestService {
             throw new NotFoundResource("Не все заявки найдены для события " + eventId);
         }
 
-        // Проверяем что все заявки в статусе PENDING
         for (Request req : requests) {
             if (!Status.PENDING.equals(req.getStatus())) {
                 throw new ConflictResource("Можно изменять статус только у заявок в состоянии PENDING");
@@ -122,7 +120,6 @@ public class RequestServiceImpl implements RequestService {
         Long countResult = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         long currentConfirmed = countResult != null ? countResult : 0L;
 
-        // Если запрошено CONFIRMED, но лимит уже достигнут — 409
         if (Status.CONFIRMED.equals(updateRequest.getStatus())
                 && limit > 0 && currentConfirmed >= limit) {
             throw new ConflictResource("The participant limit has been reached");
@@ -147,7 +144,6 @@ public class RequestServiceImpl implements RequestService {
             }
         }
 
-        // Если лимит исчерпан — автоматически отклоняем все оставшиеся PENDING
         if (limit > 0 && currentConfirmed >= limit) {
             requestRepository.findByEventId(eventId).stream()
                     .filter(r -> Status.PENDING.equals(r.getStatus()))
@@ -179,8 +175,8 @@ public class RequestServiceImpl implements RequestService {
                 .toList();
     }
 
-    private EventDto getEventOrThrow(Long eventId) {
-        EventDto event = eventServiceClient.getEventById(eventId);
+    private EventInternalDto getEventOrThrow(Long eventId) {
+        EventInternalDto event = eventServiceClient.getEventById(eventId);
         if (event == null) {
             throw new NotFoundResource("Event with id=" + eventId + " not found");
         }
