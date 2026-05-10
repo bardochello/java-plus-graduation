@@ -14,11 +14,7 @@ spring:
 eureka:
   instance:
     prefer-ip-address: true
-    instance-id: ${spring.application.name}:${server.port}
-    non-secure-port-enabled: true
-    status-page-url: http://${eureka.instance.ip-address}:${server.port}/actuator/info
-    health-check-url: http://${eureka.instance.ip-address}:${server.port}/actuator/health
-    home-page-url: http://${eureka.instance.ip-address}:${server.port}/
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 15
   client:
