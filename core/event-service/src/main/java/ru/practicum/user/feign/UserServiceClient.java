@@ -8,7 +8,7 @@ import ru.practicum.user.dto.UserDto;
 /**
  * Feign-клиент для получения данных о пользователях из user-service.
  */
-@FeignClient(name = "user-service", fallback = UserServiceClientFallback.class)
+@FeignClient(name = "user-service")
 public interface UserServiceClient {
 
     @GetMapping("/internal/users/{userId}")

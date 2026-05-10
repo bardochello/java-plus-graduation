@@ -1,11 +1,14 @@
 package ru.practicum.user.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -43,13 +46,26 @@ public class ErrorHandler {
                 .build();
     }
 
-    @ExceptionHandler
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            ConstraintViolationException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            IllegalArgumentException.class
+    })
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiError handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
-        log.error("Validation error: {}", ex.getMessage());
+    public ApiError handleBadRequest(Exception ex) {
+        log.error("Validation/Bad request: {}", ex.getMessage());
+        String message = ex.getMessage();
+        if (ex instanceof MethodArgumentNotValidException manve) {
+            message = manve.getBindingResult().getFieldErrors().stream()
+                    .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                    .findFirst()
+                    .orElse(ex.getMessage());
+        }
         return ApiError.builder()
                 .errors(List.of())
-                .message(ex.getMessage())
+                .message(message)
                 .reason("Incorrectly made request.")
                 .status("BAD_REQUEST")
                 .timestamp(LocalDateTime.now().format(FORMAT_DATE_TIME))
