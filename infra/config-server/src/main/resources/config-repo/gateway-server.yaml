@@ -11,10 +11,35 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
-        - id: main-service
-          uri: lb://main-service
+        - id: user-service-admin
+          uri: lb://user-service
           predicates:
-            - Path=/users/**,/categories/**,/admin/**,/events/**,/compilations/**,/requests/**
+            - Path=/admin/users/**
+
+        - id: user-service-admin-root
+          uri: lb://user-service
+          predicates:
+            - Path=/admin/users
+
+        - id: request-service-event-requests
+          uri: lb://request-service
+          predicates:
+            - Path=/users/*/events/*/requests
+
+        - id: request-service-users
+          uri: lb://request-service
+          predicates:
+            - Path=/users/*/requests/**
+
+        - id: request-service-users-root
+          uri: lb://request-service
+          predicates:
+            - Path=/users/*/requests
+
+        - id: event-service
+          uri: lb://event-service
+          predicates:
+            - Path=/users/**,/categories/**,/admin/**,/events/**,/compilations/**
 
 eureka:
   client:
@@ -24,7 +49,8 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
   instance:
-    prefer-ip-address: true
+    prefer-ip-address: false
+    hostname: localhost
 
 management:
   endpoints:

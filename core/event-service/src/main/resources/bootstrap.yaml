@@ -1,6 +1,6 @@
 spring:
   application:
-    name: gateway-server
+    name: event-service
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
   cloud:
@@ -15,11 +15,6 @@ spring:
         initial-interval: 1000
         max-interval: 3000
         multiplier: 1.5
-    gateway:
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
 
 eureka:
   client:
@@ -30,3 +25,13 @@ eureka:
     fetch-registry: true
   instance:
     prefer-ip-address: true
+
+feign:
+  okhttp:
+    enabled: true
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
