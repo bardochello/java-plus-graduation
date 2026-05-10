@@ -136,12 +136,15 @@ services:
       dockerfile: stats/stats-server/Dockerfile
     container_name: stats-server
     restart: always
+    ports:
+      - "9090:9090"
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
       SPRING_DATASOURCE_USERNAME: stats
       SPRING_DATASOURCE_PASSWORD: stats
+      SERVER_PORT: 9090
     depends_on:
       stats-db:
         condition: service_healthy
