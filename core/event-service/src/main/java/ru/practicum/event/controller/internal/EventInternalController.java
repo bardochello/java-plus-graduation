@@ -1,7 +1,7 @@
 package ru.practicum.event.controller.internal;
 
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.event.dto.EventInternalDto;
@@ -20,6 +20,7 @@ public class EventInternalController {
     private final EventService eventService;
 
     @GetMapping("/internal/events/{eventId}")
+    @Transactional(readOnly = true)
     public EventInternalDto getEventById(@PathVariable Long eventId) {
         Event event = eventService.getEventById(eventId);
         return EventInternalDto.builder()
