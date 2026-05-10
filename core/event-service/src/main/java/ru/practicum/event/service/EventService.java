@@ -26,4 +26,12 @@ public interface EventService {
     EventFullDto getEventByPublic(long eventId);
 
     Event getEventById(long eventId);
+
+    // ===== Likes =====
+
+    EventShortDto addLike(long userId, long eventId);
+
+    void deleteLike(long userId, long eventId);
+
+    List<EventShortDto> getTopByLikes(int count);
 }

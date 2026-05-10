@@ -86,4 +86,13 @@ public class EventPublicController {
 
         return eventService.getEventByPublic(id);
     }
+
+    /**
+     * Топ событий по количеству лайков (из microservices).
+     */
+    @GetMapping("/top")
+    public List<EventShortDto> getTopByLikes(
+            @RequestParam(defaultValue = "10") int count) {
+        return eventService.getTopByLikes(count);
+    }
 }

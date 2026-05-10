@@ -83,6 +83,10 @@ public class Event {
     @Builder.Default
     private Long confirmedRequests = 0L;
 
+    @Transient
+    @Builder.Default
+    private Long likes = 0L;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

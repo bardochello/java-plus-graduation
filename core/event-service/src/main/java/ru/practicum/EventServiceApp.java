@@ -9,8 +9,7 @@ import org.springframework.retry.annotation.EnableRetry;
 @SpringBootApplication
 @EnableDiscoveryClient
 @EnableRetry
-@EnableFeignClients
-public class EventServiceApp {
+@EnableFeignClients(basePackages = {"ru.practicum.user.feign", "ru.practicum.request.feign"})public class EventServiceApp {
     public static void main(String[] args) {
         SpringApplication.run(EventServiceApp.class, args);
     }

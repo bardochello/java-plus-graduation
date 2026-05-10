@@ -8,7 +8,7 @@ import org.springframework.retry.annotation.EnableRetry;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableFeignClients
+@EnableFeignClients(basePackages = "ru.practicum.request.feign")
 @EnableRetry
 public class RequestServiceApp {
     public static void main(String[] args) {

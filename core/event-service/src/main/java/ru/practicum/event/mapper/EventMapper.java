@@ -80,6 +80,7 @@ public class EventMapper {
                 .publishedOn(formatDateTime(event.getPublishedOn()))
                 .confirmedRequests(event.getConfirmedRequests())
                 .views(event.getViews())
+                .likesCount(event.getLikes())
                 .build();
     }
 
@@ -104,6 +105,7 @@ public class EventMapper {
                 .eventDate(formatDateTime(event.getEventDate()))
                 .confirmedRequests(event.getConfirmedRequests())
                 .views(event.getViews())
+                .likesCount(event.getLikes())
                 .build();
     }
 

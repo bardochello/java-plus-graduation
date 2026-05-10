@@ -330,7 +330,44 @@ public class EventServiceImp implements EventService {
                 .map(event -> event.toBuilder()
                         .confirmedRequests(finalConfirmed.getOrDefault(event.getId(), 0L))
                         .views(finalStats.getOrDefault(EVENT_URI_PATTERN.formatted(event.getId()), 0L))
+                        .likes(eventRepository.countLikesByEventId(event.getId()))
                         .build())
+                .toList();
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public EventShortDto addLike(long userId, long eventId) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundResource("Событие с id=%d не найдено".formatted(eventId)));
+        if (!event.getState().equals(ru.practicum.event.utill.State.PUBLISHED)) {
+            throw new ru.practicum.exception.ConflictResource("Нельзя лайкнуть неопубликованное событие");
+        }
+        eventRepository.addLike(userId, eventId);
+        long likes = eventRepository.countLikesByEventId(eventId);
+        Event updated = event.toBuilder().likes(likes).build();
+        return EventMapper.mapToEventShortDto(updated);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteLike(long userId, long eventId) {
+        eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundResource("Событие с id=%d не найдено".formatted(eventId)));
+        boolean exists = eventRepository.checkLikeExisting(userId, eventId);
+        if (!exists) {
+            throw new NotFoundResource("Лайк от пользователя %d для события %d не найден".formatted(userId, eventId));
+        }
+        eventRepository.deleteLike(userId, eventId);
+    }
+
+    @Override
+    public List<EventShortDto> getTopByLikes(int count) {
+        return eventRepository.findTop(count).stream()
+                .map(event -> event.toBuilder()
+                        .likes(eventRepository.countLikesByEventId(event.getId()))
+                        .build())
+                .map(EventMapper::mapToEventShortDto)
                 .toList();
     }
 }

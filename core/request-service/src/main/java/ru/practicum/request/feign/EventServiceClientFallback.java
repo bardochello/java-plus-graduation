@@ -1,6 +1,7 @@
 package ru.practicum.request.feign;
 
-import ru.practicum.event.dto.EventInternalDto;
+
+import ru.practicum.dto.event.EventInternalDto;
 
 public class EventServiceClientFallback implements EventServiceClient {
 

@@ -3,7 +3,7 @@ package ru.practicum.event.controller.internal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.event.dto.EventInternalDto;
+import ru.practicum.dto.event.EventInternalDto;
 import ru.practicum.event.model.Event;
 import ru.practicum.event.service.EventService;
 

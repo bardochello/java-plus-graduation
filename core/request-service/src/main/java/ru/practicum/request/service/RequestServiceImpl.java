@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.event.dto.EventInternalDto;
+import ru.practicum.dto.event.EventInternalDto;
 import ru.practicum.request.dto.*;
 import ru.practicum.request.exception.ConflictResource;
 import ru.practicum.request.exception.NotFoundResource;

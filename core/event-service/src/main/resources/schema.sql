@@ -53,3 +53,9 @@ CREATE TABLE IF NOT EXISTS comments (
     FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE,
     CONSTRAINT unique_author_event UNIQUE (author_id, event_id)
 );
+CREATE TABLE IF NOT EXISTS likes_events (
+    event_id BIGINT NOT NULL,
+    user_id  BIGINT NOT NULL,
+    CONSTRAINT likes_events_pk PRIMARY KEY (event_id, user_id),
+    FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+);
