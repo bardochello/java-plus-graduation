@@ -1,6 +1,5 @@
-version: '3.8'
-
 services:
+
   discovery-server:
     build:
       context: .
@@ -52,6 +51,18 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      user-service:
+        condition: service_started
+      event-service:
+        condition: service_started
+      request-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   stats-db:
     image: postgres:16-alpine
@@ -75,8 +86,6 @@ services:
     image: postgres:16-alpine
     container_name: ewm-db
     restart: always
-    ports:
-      - "8032:5432"
     environment:
       POSTGRES_DB: main
       POSTGRES_USER: main
@@ -89,18 +98,53 @@ services:
       timeout: 5s
       retries: 5
 
+  request-db:
+    image: postgres:16-alpine
+    container_name: request-db
+    restart: always
+    environment:
+      POSTGRES_DB: requests
+      POSTGRES_USER: requests
+      POSTGRES_PASSWORD: requests
+    volumes:
+      - request-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U requests -d requests"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    restart: always
+    environment:
+      POSTGRES_DB: users
+      POSTGRES_USER: users
+      POSTGRES_PASSWORD: users
+    volumes:
+      - user-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U users -d users"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   stats-server:
     build:
       context: .
       dockerfile: stats/stats-server/Dockerfile
     container_name: stats-server
     restart: always
+    ports:
+      - "9090:9090"
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
       SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
       SPRING_DATASOURCE_USERNAME: stats
       SPRING_DATASOURCE_PASSWORD: stats
+      SERVER_PORT: 9090
     depends_on:
       stats-db:
         condition: service_healthy
@@ -109,11 +153,32 @@ services:
       config-server:
         condition: service_healthy
 
-  main-service:
+  user-service:
     build:
       context: .
-      dockerfile: core/main-service/Dockerfile
-    container_name: main-service
+      dockerfile: core/user-service/Dockerfile
+    container_name: user-service
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users
+      SPRING_DATASOURCE_USERNAME: users
+      SPRING_DATASOURCE_PASSWORD: users
+      SERVER_PORT: 8083
+    depends_on:
+      user-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+  event-service:
+    build:
+      context: .
+      dockerfile: core/event-service/Dockerfile
+    container_name: event-service
     restart: always
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
@@ -121,6 +186,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main
       SPRING_DATASOURCE_USERNAME: main
       SPRING_DATASOURCE_PASSWORD: main
+      SERVER_PORT: 8081
     depends_on:
       ewm-db:
         condition: service_healthy
@@ -130,7 +196,34 @@ services:
         condition: service_healthy
       stats-server:
         condition: service_started
+      user-service:
+        condition: service_started
+
+  request-service:
+    build:
+      context: .
+      dockerfile: core/request-service/Dockerfile
+    container_name: request-service
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_DATASOURCE_URL: jdbc:postgresql://request-db:5432/requests
+      SPRING_DATASOURCE_USERNAME: requests
+      SPRING_DATASOURCE_PASSWORD: requests
+      SERVER_PORT: 8082
+    depends_on:
+      request-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      event-service:
+        condition: service_started
 
 volumes:
   stats-data:
   ewm-data:
+  request-data:
+  user-data:

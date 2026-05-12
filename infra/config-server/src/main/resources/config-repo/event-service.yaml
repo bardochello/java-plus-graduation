@@ -1,0 +1,67 @@
+server:
+  port: 0
+
+spring:
+  datasource:
+    driverClassName: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+  sql:
+    init:
+      mode: always
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+  main:
+    allow-circular-references: true
+  cloud:
+    loadbalancer:
+      cache:
+        enabled: false
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 3
+
+spring.cloud.openfeign.circuitbreaker.enabled: false
+
+resilience4j:
+  retry:
+    instances:
+      request-service:
+        maxAttempts: 3
+        waitDuration: 1s
+        ignoreExceptions:
+          - ru.practicum.exception.ConflictResource
+          - ru.practicum.exception.NotFoundResource
+          - ru.practicum.exception.BadRequestException
+          - ru.practicum.exception.ForbiddenResource
+      user-service:
+        maxAttempts: 3
+        waitDuration: 1s
+        ignoreExceptions:
+          - ru.practicum.exception.ConflictResource
+          - ru.practicum.exception.NotFoundResource
+          - ru.practicum.exception.BadRequestException
+          - ru.practicum.exception.ForbiddenResource
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
