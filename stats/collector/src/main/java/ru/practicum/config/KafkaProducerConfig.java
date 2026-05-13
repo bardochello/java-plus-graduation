@@ -4,8 +4,10 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -17,11 +19,13 @@ import java.util.Map;
 @Setter
 @Configuration
 @RequiredArgsConstructor
+@EnableConfigurationProperties(KafkaProperties.class)
 public class KafkaProducerConfig {
 
     private final KafkaProperties kafkaProperties;
 
     @Bean
+    @Primary
     public ProducerFactory<String, UserActionAvro> kafkaProducer() {
         Map<String, Object> props = Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers(),
@@ -32,6 +36,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
+    @Primary
     public KafkaTemplate<String, UserActionAvro> kafkaTemplate() {
         return new KafkaTemplate<>(kafkaProducer());
     }
