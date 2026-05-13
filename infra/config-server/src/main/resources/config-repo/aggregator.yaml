@@ -1,16 +1,17 @@
 server:
   port: 0
 
-spring:
-  kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    consumer:
-      group-id: aggregator-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
-      value-deserializer: ru.practicum.aggregator.config.UserActionAvroDeserializer
-      properties:
-        specific.avro.reader: true
+kafka:
+  bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  consumer:
+    group-id: aggregator-group
+    topic: stats.user-actions.v1
+    key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    value-deserializer: ru.practicum.config.UserActionAvroDeserializer
+  producer:
+    topic: stats.events-similarity.v1
+    key-serializer: org.apache.kafka.common.serialization.LongSerializer
+    value-serializer: ru.practicum.config.EventSimilarityAvroSerializer
 
 eureka:
   client:

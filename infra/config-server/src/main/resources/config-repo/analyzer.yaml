@@ -6,6 +6,19 @@ grpc:
     port: 9091
     address: 0.0.0.0
 
+kafka:
+  bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  user-actions-consumer:
+    topic: stats.user-actions.v1
+    group-id: analyzer-user-actions-group
+    key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    value-deserializer: ru.practicum.config.UserActionAvroDeserializer
+  events-similarity-consumer:
+    topic: stats.events-similarity.v1
+    group-id: analyzer-events-similarity-group
+    key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    value-deserializer: ru.practicum.config.EventSimilarityAvroDeserializer
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/postgres}
@@ -19,12 +32,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    consumer:
-      group-id: analyzer-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
 
 eureka:
   client:

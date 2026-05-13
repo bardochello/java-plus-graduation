@@ -4,7 +4,7 @@ WORKDIR /app
 COPY . .
 
 RUN mvn clean package -DskipTests -Dmaven.test.skip=true \
-    -pl stats/stats-dto,stats/stats-client,core/event-service \
+    -pl stats/serialization,stats/stats-client,core/event-service \
     -am
 
 FROM eclipse-temurin:21-jre-jammy

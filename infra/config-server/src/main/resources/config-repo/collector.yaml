@@ -6,12 +6,16 @@ grpc:
     port: 9090
     address: 0.0.0.0
 
+collector:
+  kafka:
+    topic: stats.user-actions.v1
+
 spring:
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.LongSerializer
-      value-serializer: ru.practicum.collector.config.UserActionAvroSerializer
+      value-serializer: ru.practicum.config.UserActionAvroSerializer
       properties:
         max.block.ms: 5000
         request.timeout.ms: 5000

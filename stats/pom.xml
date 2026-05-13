@@ -3,6 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>ru.practicum</groupId>
         <artifactId>explore-with-me</artifactId>
@@ -13,38 +14,27 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>stats-dto</module>
         <module>stats-client</module>
-        <module>collector</module>
         <module>aggregator</module>
         <module>analyzer</module>
+        <module>serialization</module>
+        <module>collector</module>
     </modules>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
         <protobuf.version>3.24.4</protobuf.version>
-        <grpc.version>1.62.2</grpc.version>
+        <grpc.version>1.63.0</grpc.version>
         <avro.version>1.11.3</avro.version>
-        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
-        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <grpc-spring-boot-starter.version>3.1.0.RELEASE</grpc-spring-boot-starter.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Protobuf -->
-            <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>${protobuf.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java-util</artifactId>
-                <version>${protobuf.version}</version>
-            </dependency>
-            <!-- gRPC -->
+            <!-- gRPC BOM -->
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-bom</artifactId>
@@ -52,16 +42,30 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <dependency>
-                <groupId>io.grpc</groupId>
-                <artifactId>grpc-protobuf</artifactId>
-                <version>${grpc.version}</version>
-            </dependency>
+
             <dependency>
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-stub</artifactId>
                 <version>${grpc.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+
+            <!-- gRPC Spring Boot Starter -->
+            <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-server-spring-boot-starter</artifactId>
+                <version>${grpc-spring-boot-starter.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-client-spring-boot-starter</artifactId>
+                <version>${grpc-spring-boot-starter.version}</version>
+            </dependency>
+
             <!-- Avro -->
             <dependency>
                 <groupId>org.apache.avro</groupId>
@@ -74,20 +78,18 @@
     <build>
         <pluginManagement>
             <plugins>
-                <plugin>
-                    <groupId>kr.motd.maven</groupId>
-                    <artifactId>os-maven-plugin</artifactId>
-                    <version>${os-maven-plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.xolstice.maven.plugins</groupId>
-                    <artifactId>protobuf-maven-plugin</artifactId>
-                    <version>${protobuf-maven-plugin.version}</version>
-                </plugin>
+                <!-- Avro plugin -->
                 <plugin>
                     <groupId>org.apache.avro</groupId>
                     <artifactId>avro-maven-plugin</artifactId>
                     <version>${avro.version}</version>
+                </plugin>
+
+                <!-- Protobuf plugin -->
+                <plugin>
+                    <groupId>io.github.ascopes</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>2.0.3</version>
                 </plugin>
             </plugins>
         </pluginManagement>

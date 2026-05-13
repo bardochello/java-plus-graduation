@@ -79,12 +79,6 @@
             <artifactId>stats-client</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
-        <!--  stats-dto: сгенерированные Proto-классы нужны grpc-client  -->
-        <dependency>
-            <groupId>ru.practicum</groupId>
-            <artifactId>stats-dto</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
         <!--  gRPC Client (нужен для @GrpcClient в stats-client)  -->
         <dependency>
             <groupId>net.devh</groupId>

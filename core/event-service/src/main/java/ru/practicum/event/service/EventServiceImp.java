@@ -21,7 +21,8 @@ import ru.practicum.event.utill.State;
 import ru.practicum.exception.BadRequestException;
 import ru.practicum.exception.ConflictResource;
 import ru.practicum.exception.NotFoundResource;
-import ru.practicum.ewm.stats.message.RecommendedEventProto;
+import ru.practicum.ewm.stats.proto.RecommendationsMessages.RecommendedEventProto;
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
 import ru.practicum.request.feign.RequestServiceClient;
 import ru.practicum.user.service.UserService;
 
@@ -171,8 +172,7 @@ public class EventServiceImp implements EventService {
         if (!event.getState().equals(State.PUBLISHED))
             throw new NotFoundResource("Событие с id %d не опубликовано".formatted(eventId));
 
-        // По ТЗ: отправляем VIEW в Collector только при GET /events/{id}
-        collectorClient.sendView(userId, eventId);
+        collectorClient.sendUserAction(userId, eventId, ActionTypeProto.ACTION_VIEW);
 
         Event enriched = enrichWithStats(List.of(event)).getFirst();
         return EventMapper.mapToEventFullDto(enriched);
@@ -182,7 +182,6 @@ public class EventServiceImp implements EventService {
 
     @Override
     public List<EventShortDto> getRecommendations(long userId, int maxResults) {
-        // Один запрос к Analyzer — собираем id и score одновременно
         Map<Long, Double> scores = analyzerClient
                 .getRecommendationsForUser(userId, maxResults)
                 .collect(Collectors.toMap(
@@ -219,14 +218,13 @@ public class EventServiceImp implements EventService {
         if (!event.getState().equals(State.PUBLISHED)) {
             throw new BadRequestException("Нельзя лайкнуть неопубликованное событие");
         }
-        // Проверяем, что пользователь регистрировался на мероприятие
         boolean hasRegistration = safeCheckRegistration(userId, eventId);
         if (!hasRegistration) {
             throw new BadRequestException(
                     "Лайкнуть можно только посещённое мероприятие. " +
                             "Пользователь %d не зарегистрирован на событие %d".formatted(userId, eventId));
         }
-        collectorClient.sendLike(userId, eventId);
+        collectorClient.sendUserAction(userId, eventId, ActionTypeProto.ACTION_LIKE);
     }
 
     // ─── Вспомогательные ───────────────────────────────────────────────────────

@@ -205,7 +205,6 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     healthcheck:
-      # cub (confluent utility belt) гарантированно есть в confluent-образах
       test: ["CMD", "cub", "zk-ready", "localhost:2181", "30"]
       interval: 10s
       timeout: 15s

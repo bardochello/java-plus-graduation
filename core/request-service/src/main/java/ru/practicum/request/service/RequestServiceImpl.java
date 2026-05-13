@@ -18,6 +18,8 @@ import ru.practicum.request.utill.Status;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -73,8 +75,7 @@ public class RequestServiceImpl implements RequestService {
         Request saved = requestRepository.save(request);
 
         // По ТЗ: при регистрации на мероприятие отправляем REGISTER в Collector
-        // Отправляем всегда (даже если статус PENDING) — факт подачи заявки уже означает интерес
-        collectorClient.sendRegister(userId, eventId);
+        collectorClient.sendUserAction(userId, eventId, ActionTypeProto.ACTION_REGISTER);
         log.info("Sent REGISTER to Collector: userId={}, eventId={}", userId, eventId);
 
         return RequestMapper.mapToDto(saved);
