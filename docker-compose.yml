@@ -205,10 +205,10 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     healthcheck:
-      # zkServer.sh доступен внутри confluent-образа, nc — нет
-      test: ["CMD-SHELL", "zkServer.sh status 2>/dev/null | grep -E 'Mode: (standalone|leader|follower)'"]
+      # cub (confluent utility belt) гарантированно есть в confluent-образах
+      test: ["CMD", "cub", "zk-ready", "localhost:2181", "30"]
       interval: 10s
-      timeout: 10s
+      timeout: 15s
       retries: 10
       start_period: 30s
 
@@ -231,9 +231,9 @@ services:
       KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      test: ["CMD", "cub", "kafka-ready", "-b", "localhost:9092", "1", "30"]
       interval: 10s
-      timeout: 10s
+      timeout: 15s
       retries: 10
       start_period: 40s
 
@@ -243,7 +243,6 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    # Одна строка — перенос внутри yaml > блока ломает аргументы команды
     command: bash -c "kafka-topics --bootstrap-server kafka:29092 --create --topic stats.user-actions.v1 --partitions 3 --replication-factor 1 --if-not-exists && kafka-topics --bootstrap-server kafka:29092 --create --topic stats.events-similarity.v1 --partitions 3 --replication-factor 1 --if-not-exists && echo 'Topics created successfully'"
     restart: "no"
 
