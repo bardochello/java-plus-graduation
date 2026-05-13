@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "kafka")
 public class KafkaProperties {
     private String bootstrapServers;
-    private final ConsumerProps userActionsConsumer = new ConsumerProps();
-    private final ConsumerProps eventsSimilarityConsumer = new ConsumerProps();
+    private ConsumerProps userActionsConsumer = new ConsumerProps();
+    private ConsumerProps eventsSimilarityConsumer = new ConsumerProps();
 
     @Data
     public static class ConsumerProps {

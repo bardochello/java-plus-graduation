@@ -13,6 +13,10 @@ kafka:
     key-serializer: org.apache.kafka.common.serialization.StringSerializer
     value-serializer: ru.practicum.config.EventSimilarityAvroSerializer
 
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
 eureka:
   client:
     service-url:
