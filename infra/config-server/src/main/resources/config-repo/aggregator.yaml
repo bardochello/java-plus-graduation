@@ -7,7 +7,7 @@ spring:
     consumer:
       group-id: aggregator-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
       value-deserializer: ru.practicum.aggregator.config.UserActionAvroDeserializer
       properties:
         specific.avro.reader: true
@@ -20,7 +20,8 @@ eureka:
     fetch-registry: true
     registry-fetch-interval-seconds: 3
   instance:
-    prefer-ip-address: true
+    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     instance-id: ${spring.application.name}:${random.int}
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 15

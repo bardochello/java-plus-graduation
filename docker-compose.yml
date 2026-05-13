@@ -254,10 +254,14 @@ services:
       dockerfile: stats/collector/Dockerfile
     container_name: collector
     restart: always
+    ports:
+      - "9090:9090"
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_HOSTNAME: localhost
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -265,6 +269,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
 
   aggregator:
     build:
@@ -276,6 +282,8 @@ services:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_HOSTNAME: localhost
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -292,6 +300,8 @@ services:
       dockerfile: stats/analyzer/Dockerfile
     container_name: analyzer
     restart: always
+    ports:
+      - "9091:9091"
     environment:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
@@ -299,6 +309,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://analyzer-db:5432/analyzer
       SPRING_DATASOURCE_USERNAME: analyzer
       SPRING_DATASOURCE_PASSWORD: analyzer
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_HOSTNAME: localhost
     depends_on:
       analyzer-db:
         condition: service_healthy

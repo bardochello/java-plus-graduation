@@ -18,7 +18,7 @@ public class UserActionControllerImpl extends UserActionControllerGrpc.UserActio
 
     private static final String TOPIC = "stats.user-actions.v1";
 
-    private final KafkaTemplate<String, UserActionAvro> kafkaTemplate;
+    private final KafkaTemplate<Long, UserActionAvro> kafkaTemplate;
     private final UserActionMapper mapper;
 
     @Override
@@ -27,7 +27,7 @@ public class UserActionControllerImpl extends UserActionControllerGrpc.UserActio
                 request.getUserId(), request.getEventId(), request.getActionType());
 
         UserActionAvro avro = mapper.toAvro(request);
-        kafkaTemplate.send(TOPIC, String.valueOf(request.getEventId()), avro);
+        kafkaTemplate.send(TOPIC, request.getEventId(), avro);
 
         responseObserver.onNext(Empty.getDefaultInstance());
         responseObserver.onCompleted();

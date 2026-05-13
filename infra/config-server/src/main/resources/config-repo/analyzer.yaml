@@ -24,7 +24,7 @@ spring:
     consumer:
       group-id: analyzer-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
 
 eureka:
   client:
@@ -34,12 +34,11 @@ eureka:
     fetch-registry: true
     registry-fetch-interval-seconds: 3
   instance:
-    prefer-ip-address: true
+    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     instance-id: ${spring.application.name}:${random.int}
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 15
-    metadata-map:
-      grpcPort: ${grpc.server.port}
 
 management:
   endpoints:

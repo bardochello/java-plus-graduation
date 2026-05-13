@@ -13,4 +13,6 @@ WORKDIR /app
 
 COPY --from=builder /app/stats/collector/target/*.jar app.jar
 
+EXPOSE 9090
+
 ENTRYPOINT ["java", "-jar", "app.jar"]

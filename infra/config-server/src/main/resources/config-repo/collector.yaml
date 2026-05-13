@@ -10,7 +10,7 @@ spring:
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      key-serializer: org.apache.kafka.common.serialization.LongSerializer
       value-serializer: ru.practicum.collector.config.UserActionAvroSerializer
       properties:
         max.block.ms: 5000
@@ -25,7 +25,8 @@ eureka:
     fetch-registry: true
     registry-fetch-interval-seconds: 3
   instance:
-    prefer-ip-address: true
+    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     instance-id: ${spring.application.name}:${random.int}
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 15
