@@ -8,8 +8,7 @@ import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Сервис инкрементального расчёта косинусного сходства мероприятий.
@@ -31,6 +30,8 @@ public class SimilarityService {
     private final Map<Long, Double> eventWeightSums = new HashMap<>();
     // min(eventA,eventB) -> max(eventA,eventB) -> S_min
     private final Map<Long, Map<Long, Double>> minWeightSums = new HashMap<>();
+    // userId -> set of eventIds the user has positive weight on (to avoid global iteration)
+    private final Map<Long, Set<Long>> userEvents = new HashMap<>();
 
     private final KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate;
 
@@ -56,6 +57,7 @@ public class SimilarityService {
         }
 
         usersForEvent.put(userId, newWeight);
+        userEvents.computeIfAbsent(userId, k -> new HashSet<>()).add(eventId);
 
         double deltaWeight = newWeight - oldWeight;
         double oldSA = eventWeightSums.getOrDefault(eventId, 0.0);
@@ -64,10 +66,14 @@ public class SimilarityService {
 
         log.debug("Updated S_A for event={}: {} -> {} (delta={})", eventId, oldSA, newSA, deltaWeight);
 
-        for (long otherEventId : userEventWeights.keySet()) {
+        // Only iterate over events THIS user has interacted with (fixes over-production of messages)
+        Set<Long> eventsForThisUser = userEvents.getOrDefault(userId, Collections.emptySet());
+        for (long otherEventId : eventsForThisUser) {
             if (otherEventId == eventId) continue;
 
             Map<Long, Double> usersForOther = userEventWeights.get(otherEventId);
+            if (usersForOther == null) continue;
+
             double userWeightForOther = usersForOther.getOrDefault(userId, 0.0);
 
             if (userWeightForOther == 0.0) {
@@ -105,7 +111,6 @@ public class SimilarityService {
                 .setEventA(eventA)
                 .setEventB(eventB)
                 .setScore((float) similarity)
-                // EventSimilarityAvro.setTimestamp принимает Instant (timestamp-millis)
                 .setTimestamp(Instant.ofEpochMilli(timestamp))
                 .build();
 

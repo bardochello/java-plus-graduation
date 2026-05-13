@@ -260,8 +260,6 @@ services:
       CONFIG_SERVER_URL: http://config-server:8888
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_HOSTNAME: localhost
     depends_on:
       discovery-server:
         condition: service_healthy
