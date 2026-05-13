@@ -3,7 +3,7 @@ server:
 
 grpc:
   server:
-    port: 0
+    port: 9091
     address: 0.0.0.0
 
 spring:
@@ -32,6 +32,20 @@ eureka:
       defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://localhost:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
+    registry-fetch-interval-seconds: 3
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${random.int}
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+    metadata-map:
+      grpcPort: ${grpc.server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
