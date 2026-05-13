@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: collector
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+      retry:
+        max-attempts: 10
+    discovery:
+      enabled: true

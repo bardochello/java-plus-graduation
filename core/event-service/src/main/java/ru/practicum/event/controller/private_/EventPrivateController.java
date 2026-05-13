@@ -46,23 +46,4 @@ public class EventPrivateController {
                                @RequestBody @Valid UpdateEventUserRequest updateEvent) {
         return eventService.update(userId, eventId, updateEvent);
     }
-
-    /**
-     * Добавить лайк событию (из microservices).
-     */
-    @PutMapping("/{eventId}/likes")
-    public EventShortDto addLike(@PathVariable @Positive long userId,
-                                 @PathVariable @Positive long eventId) {
-        return eventService.addLike(userId, eventId);
-    }
-
-    /**
-     * Удалить лайк события (из microservices).
-     */
-    @DeleteMapping("/{eventId}/likes")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteLike(@PathVariable @Positive long userId,
-                           @PathVariable @Positive long eventId) {
-        eventService.deleteLike(userId, eventId);
-    }
 }

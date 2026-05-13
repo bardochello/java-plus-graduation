@@ -7,6 +7,7 @@ import ru.practicum.user.dto.UserShortDto;
 
 /**
  * DTO для краткого представления события.
+ * views заменён на rating (double).
  */
 @Getter
 @Setter
@@ -26,6 +27,6 @@ public class EventShortDto {
     private UserShortDto initiator;
     private Boolean paid;
     private String title;
-    private Long views;
-    private Long likesCount;
+
+    private Double rating;
 }

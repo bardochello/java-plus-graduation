@@ -10,6 +10,7 @@ import ru.practicum.user.dto.UserShortDto;
 
 /**
  * DTO для полного представления события.
+ * views заменён на rating (double) — рейтинг из сервиса рекомендаций.
  */
 @Getter
 @Setter
@@ -43,6 +44,7 @@ public class EventFullDto {
 
     private State state;
     private String title;
-    private Long views;
-    private Long likesCount;
+
+    /** Рейтинг мероприятия — сумма весов взаимодействий всех пользователей. */
+    private Double rating;
 }

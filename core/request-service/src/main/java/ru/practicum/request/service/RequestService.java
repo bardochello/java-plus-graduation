@@ -1,8 +1,6 @@
 package ru.practicum.request.service;
 
-import ru.practicum.request.dto.EventRequestStatusUpdateRequest;
-import ru.practicum.request.dto.EventRequestStatusUpdateResult;
-import ru.practicum.request.dto.ParticipationRequestDto;
+import ru.practicum.request.dto.*;
 
 import java.util.List;
 import java.util.Map;
@@ -25,4 +23,7 @@ public interface RequestService {
     List<ParticipationRequestDto> getRequestsByEventIdIn(List<Long> eventIds);
 
     Map<Long, Long> countConfirmedByEventIds(List<Long> eventIds);
+
+    /** Все подтверждённые заявки на мероприятие (для проверки факта посещения). */
+    List<ParticipationRequestDto> getConfirmedRequestsByEventId(Long eventId);
 }

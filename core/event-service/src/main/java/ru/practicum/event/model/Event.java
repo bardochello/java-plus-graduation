@@ -12,6 +12,7 @@ import java.util.Objects;
 
 /**
  * Сущность события.
+ * views и likes заменены на rating (double) — рейтинг из сервиса рекомендаций.
  */
 @Builder(toBuilder = true)
 @Table(name = "events")
@@ -75,17 +76,21 @@ public class Event {
     @Builder.Default
     private State state = State.PENDING;
 
+    /**
+     * Рейтинг мероприятия — сумма максимальных весов взаимодействий всех пользователей.
+     * Заполняется из сервиса Analyzer. Не хранится в БД (transient).
+     */
     @Transient
     @Builder.Default
-    private Long views = 0L;
+    private Double rating = 0.0;
 
+    /**
+     * Количество подтверждённых заявок.
+     * Заполняется из request-service. Не хранится в БД (transient).
+     */
     @Transient
     @Builder.Default
     private Long confirmedRequests = 0L;
-
-    @Transient
-    @Builder.Default
-    private Long likes = 0L;
 
     @Override
     public boolean equals(Object o) {
