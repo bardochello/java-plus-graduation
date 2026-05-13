@@ -5,6 +5,10 @@ grpc:
   server:
     port: 9091
     address: 0.0.0.0
+    permit-keep-alive-without-calls: true
+    permit-keep-alive-time: 10s
+    keep-alive-time: 30s
+    keep-alive-timeout: 10s
 
 kafka:
   bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
