@@ -12,6 +12,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: ru.practicum.collector.config.UserActionAvroSerializer
+      properties:
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
 
 eureka:
   client:
@@ -22,6 +26,5 @@ eureka:
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${random.int}
-
     metadata-map:
       gRPC.port: ${grpc.server.port}

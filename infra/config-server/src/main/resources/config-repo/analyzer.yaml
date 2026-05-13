@@ -35,6 +35,5 @@ eureka:
   instance:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${random.int}
-    # Публикуем gRPC порт в metadata — CI-скрипт ищет именно этот ключ
     metadata-map:
       gRPC.port: ${grpc.server.port}
