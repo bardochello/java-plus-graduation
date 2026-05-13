@@ -1,17 +1,21 @@
 syntax = "proto3";
 
-package ru.practicum.ewm.stats.proto;
+package stats.service.analyzer;
 
 import "messages/recommendations_messages.proto";
 import "google/protobuf/empty.proto";
 
+option java_multiple_files = true;
+option java_package = "ru.practicum.ewm.stats.proto";
+option java_outer_classname = "RecommendationsControllerOuterClass";
+
 service RecommendationsController {
-  rpc GetRecommendationsForUser(UserPredictionsRequestProto)
-      returns (stream RecommendedEventProto);
+  rpc GetRecommendationsForUser(ru.practicum.ewm.stats.proto.UserPredictionsRequestProto)
+      returns (stream ru.practicum.ewm.stats.proto.RecommendedEventProto);
 
-  rpc GetSimilarEvents(SimilarEventsRequestProto)
-      returns (stream RecommendedEventProto);
+  rpc GetSimilarEvents(ru.practicum.ewm.stats.proto.SimilarEventsRequestProto)
+      returns (stream ru.practicum.ewm.stats.proto.RecommendedEventProto);
 
-  rpc GetInteractionsCount(InteractionsCountRequestProto)
-      returns (stream RecommendedEventProto);
+  rpc GetInteractionsCount(ru.practicum.ewm.stats.proto.InteractionsCountRequestProto)
+      returns (stream ru.practicum.ewm.stats.proto.RecommendedEventProto);
 }
