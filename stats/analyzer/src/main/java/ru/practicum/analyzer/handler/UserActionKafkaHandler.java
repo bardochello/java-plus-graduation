@@ -31,8 +31,7 @@ public class UserActionKafkaHandler {
         long eventId = action.getEventId();
         double newWeight = toWeight(action.getActionType());
 
-        // action.getTimestamp() возвращает Instant — передаём напрямую в модель (поле Instant)
-        Instant timestamp = action.getTimestamp();
+        Instant timestamp = Instant.ofEpochMilli(action.getTimestamp());
 
         log.info("Received user action: userId={}, eventId={}, weight={}", userId, eventId, newWeight);
 

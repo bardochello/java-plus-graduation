@@ -6,8 +6,6 @@ import ru.practicum.ewm.stats.avro.UserActionAvro;
 import ru.practicum.ewm.stats.message.ActionTypeProto;
 import ru.practicum.ewm.stats.message.UserActionProto;
 
-import java.time.Instant;
-
 @Component
 public class UserActionMapper {
 
@@ -16,8 +14,7 @@ public class UserActionMapper {
                 .setUserId(proto.getUserId())
                 .setEventId(proto.getEventId())
                 .setActionType(toAvroActionType(proto.getActionType()))
-                // Avro timestamp-millis builder принимает Instant, а не long
-                .setTimestamp(Instant.ofEpochMilli(toMillis(proto)))
+                .setTimestamp(toMillis(proto))
                 .build();
     }
 

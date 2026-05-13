@@ -43,8 +43,7 @@ public class SimilarityService {
         long eventId = action.getEventId();
         double newWeight = toWeight(action.getActionType());
 
-        // action.getTimestamp() возвращает Instant (логический тип timestamp-millis)
-        Instant timestamp = action.getTimestamp();
+        long timestamp = action.getTimestamp();
 
         Map<Long, Double> usersForEvent = userEventWeights
                 .computeIfAbsent(eventId, id -> new HashMap<>());
@@ -95,7 +94,7 @@ public class SimilarityService {
 
     private void recalculateAndPublish(long eventId, long otherEventId,
                                        double sMin, double sA, double sB,
-                                       Instant timestamp) {
+                                       long timestamp) {
         if (sA <= 0 || sB <= 0) return;
 
         double similarity = sMin / (sA * sB);
@@ -105,9 +104,9 @@ public class SimilarityService {
         EventSimilarityAvro avro = EventSimilarityAvro.newBuilder()
                 .setEventA(eventA)
                 .setEventB(eventB)
-                .setScore(similarity)
-                // setTimestamp принимает Instant для timestamp-millis
-                .setTimestamp(timestamp)
+                .setScore((float) similarity)
+                // EventSimilarityAvro.setTimestamp принимает Instant (timestamp-millis)
+                .setTimestamp(Instant.ofEpochMilli(timestamp))
                 .build();
 
         kafkaTemplate.send(SIMILARITY_TOPIC, eventA + "-" + eventB, avro);

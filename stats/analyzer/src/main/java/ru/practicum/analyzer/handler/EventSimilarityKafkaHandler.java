@@ -25,11 +25,10 @@ public class EventSimilarityKafkaHandler {
 
         log.info("Received similarity: eventA={}, eventB={}, score={}", eventA, eventB, avro.getScore());
 
-        // avro.getTimestamp() возвращает Instant — передаём напрямую в модель (поле Instant)
         similarityRepository.findByEventPair(eventA, eventB)
                 .ifPresentOrElse(
                         existing -> {
-                            existing.setScore(avro.getScore());
+                            existing.setScore((double) avro.getScore());
                             existing.setTimestamp(avro.getTimestamp());
                             similarityRepository.save(existing);
                         },
@@ -37,7 +36,7 @@ public class EventSimilarityKafkaHandler {
                             EventSimilarity similarity = EventSimilarity.builder()
                                     .eventA(eventA)
                                     .eventB(eventB)
-                                    .score(avro.getScore())
+                                    .score((double) avro.getScore())
                                     .timestamp(avro.getTimestamp())
                                     .build();
                             similarityRepository.save(similarity);

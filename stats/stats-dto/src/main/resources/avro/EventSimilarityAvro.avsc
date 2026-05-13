@@ -5,7 +5,7 @@
   "fields": [
     {"name": "eventA", "type": "long"},
     {"name": "eventB", "type": "long"},
-    {"name": "score", "type": "double"},
+    {"name": "score", "type": "float"},
     {"name": "timestamp", "type": {"type": "long", "logicalType": "timestamp-millis"}}
   ]
 }
