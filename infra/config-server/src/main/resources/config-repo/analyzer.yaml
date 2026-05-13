@@ -11,12 +11,12 @@ kafka:
   user-actions-consumer:
     topic: stats.user-actions.v1
     group-id: analyzer-user-actions-group
-    key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     value-deserializer: ru.practicum.config.UserActionAvroDeserializer
   events-similarity-consumer:
     topic: stats.events-similarity.v1
     group-id: analyzer-events-similarity-group
-    key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     value-deserializer: ru.practicum.config.EventSimilarityAvroDeserializer
 
 spring:

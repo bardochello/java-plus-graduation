@@ -6,11 +6,11 @@ kafka:
   consumer:
     group-id: aggregator-group
     topic: stats.user-actions.v1
-    key-deserializer: org.apache.kafka.common.serialization.LongDeserializer
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     value-deserializer: ru.practicum.config.UserActionAvroDeserializer
   producer:
     topic: stats.events-similarity.v1
-    key-serializer: org.apache.kafka.common.serialization.LongSerializer
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
     value-serializer: ru.practicum.config.EventSimilarityAvroSerializer
 
 eureka:

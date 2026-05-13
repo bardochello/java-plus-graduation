@@ -56,7 +56,7 @@ public class SimilarityService {
 
         weights.keySet()
                 .stream()
-                .filter(otherEvent -> otherEvent.equals(eventId))
+                .filter(otherEvent -> !otherEvent.equals(eventId))
                 .forEach(otherEvent -> updatePairSimilarity(eventId, otherEvent, timestamp));
     }
 
@@ -67,7 +67,6 @@ public class SimilarityService {
         double sA = eventWeightsSum.getOrDefault(eventA, 0);
         double sB = eventWeightsSum.getOrDefault(eventB, 0);
         if (sA == 0 || sB == 0) {
-
             log.debug("Обнаружена нулевая сумма (sA={}, sB={}), пропускающая сходство для событий {} и {}",
                     sA, sB, eventA, eventB);
             return;
@@ -85,7 +84,8 @@ public class SimilarityService {
                 .setTimestamp(timestamp)
                 .build();
 
-        kafkaTemplate.send(props.getProducer().getTopic(), similarityMsg);
+        String key = first + "-" + second;
+        kafkaTemplate.send(props.getProducer().getTopic(), key, similarityMsg);
 
         log.debug("Обновлено сходство для (A={}, B={}) => {}", first, second, similarity);
     }
