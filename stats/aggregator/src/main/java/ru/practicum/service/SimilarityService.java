@@ -1,9 +1,9 @@
 package ru.practicum.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import ru.practicum.config.KafkaProperties;
 import ru.practicum.ewm.stats.avro.ActionTypeAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
@@ -15,28 +15,29 @@ import java.util.Map;
 @Slf4j
 @Service
 public class SimilarityService {
+    private final Map<Long, Map<Long, Double>> weights = new HashMap<>();
 
-    private final Map<Long, Map<Long, Integer>> weights = new HashMap<>();
+    private final Map<Long, Double> eventWeightsSumOfSquares = new HashMap<>();
 
-    private final Map<Long, Integer> eventWeightsSum = new HashMap<>();
+    private final MinWeightsMatrix minWeightsMatrix = new MinWeightsMatrix();
 
     private final KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate;
-    private final KafkaProperties props;
 
-    public SimilarityService(KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate,
-                             KafkaProperties props) {
+    @Value("${kafka.producer.topic}")
+    private String similarityTopic;
+
+    public SimilarityService(KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
-        this.props = props;
     }
 
     public void processUserAction(UserActionAvro action) {
         long userId  = action.getUserId();
         long eventId = action.getEventId();
-        int newWeight = convertActionType(action.getActionType());
+        double newWeight = convertActionType(action.getActionType());
         Instant timestamp = Instant.ofEpochMilli(action.getTimestamp());
 
-        Map<Long, Integer> userMap = weights.computeIfAbsent(eventId, e -> new HashMap<>());
-        int oldWeight = userMap.getOrDefault(userId, 0);
+        Map<Long, Double> userMap = weights.computeIfAbsent(eventId, e -> new HashMap<>());
+        double oldWeight = userMap.getOrDefault(userId, 0.0);
 
         if (newWeight <= oldWeight) {
             return;
@@ -44,8 +45,9 @@ public class SimilarityService {
 
         userMap.put(userId, newWeight);
 
-        int diff = newWeight - oldWeight;
-        eventWeightsSum.merge(eventId, diff, Integer::sum);
+        double oldSumSq = eventWeightsSumOfSquares.getOrDefault(eventId, 0.0);
+        double newSumSq = oldSumSq - (oldWeight * oldWeight) + (newWeight * newWeight);
+        eventWeightsSumOfSquares.put(eventId, newSumSq);
 
         weights.keySet().stream()
                 .filter(otherEvent -> !otherEvent.equals(eventId))
@@ -54,13 +56,14 @@ public class SimilarityService {
 
     private void updatePairSimilarity(long eventA, long eventB, Instant timestamp) {
         double sMin = calcSMin(eventA, eventB);
+        minWeightsMatrix.put(eventA, eventB, sMin);
 
         if (sMin == 0) {
             return;
         }
 
-        double sA = eventWeightsSum.getOrDefault(eventA, 0);
-        double sB = eventWeightsSum.getOrDefault(eventB, 0);
+        double sA = eventWeightsSumOfSquares.getOrDefault(eventA, 0.0);
+        double sB = eventWeightsSumOfSquares.getOrDefault(eventB, 0.0);
         if (sA == 0 || sB == 0) {
             return;
         }
@@ -77,13 +80,13 @@ public class SimilarityService {
                 .setTimestamp(timestamp)
                 .build();
 
-        kafkaTemplate.send(props.getProducer().getTopic(), first + "-" + second, msg);
+        kafkaTemplate.send(similarityTopic, msg);
         log.debug("Similarity (A={}, B={}) = {}", first, second, similarity);
     }
 
     private double calcSMin(long eventA, long eventB) {
-        Map<Long, Integer> userMapA = weights.getOrDefault(eventA, Map.of());
-        Map<Long, Integer> userMapB = weights.getOrDefault(eventB, Map.of());
+        Map<Long, Double> userMapA = weights.getOrDefault(eventA, Map.of());
+        Map<Long, Double> userMapB = weights.getOrDefault(eventB, Map.of());
 
         return userMapA.entrySet().stream()
                 .filter(e -> userMapB.containsKey(e.getKey()))
@@ -91,11 +94,11 @@ public class SimilarityService {
                 .sum();
     }
 
-    private int convertActionType(ActionTypeAvro actionType) {
+    private double convertActionType(ActionTypeAvro actionType) {
         return switch (actionType) {
-            case REGISTER -> 2;
-            case LIKE     -> 3;
-            default       -> 1; // VIEW
+            case REGISTER -> 0.8;
+            case LIKE     -> 1.0;
+            default       -> 0.4; // VIEW
         };
     }
 }
