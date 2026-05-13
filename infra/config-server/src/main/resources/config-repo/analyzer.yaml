@@ -52,6 +52,8 @@ eureka:
     instance-id: ${spring.application.name}:${random.int}
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 15
+    metadata-map:
+      grpcPort: ${grpc.server.port}
 
 management:
   endpoints:

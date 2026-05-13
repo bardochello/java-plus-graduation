@@ -27,3 +27,5 @@ eureka:
     prefer-ip-address: false
     hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
     instance-id: ${spring.application.name}:${random.int}
+    metadata-map:
+      grpcPort: ${grpc.server.port}
