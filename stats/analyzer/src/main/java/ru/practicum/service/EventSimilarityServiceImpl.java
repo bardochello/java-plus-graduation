@@ -21,7 +21,8 @@ public class EventSimilarityServiceImpl implements EventSimilarityService {
         long eventA = eventSimilarityAvro.getEventA();
         long eventB = eventSimilarityAvro.getEventB();
         float score = eventSimilarityAvro.getScore();
-        Instant ts = eventSimilarityAvro.getTimestamp();
+        // timestamp_ms без javaTimeConversions возвращает long (epoch millis)
+        Instant ts = Instant.ofEpochMilli(eventSimilarityAvro.getTimestamp());
 
         EventSimilarity existing = findPair(eventA, eventB);
         if (existing == null) {

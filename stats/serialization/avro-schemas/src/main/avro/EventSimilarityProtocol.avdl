@@ -5,6 +5,6 @@ protocol EventSimilarityProtocol {
 		long  eventA;
 		long  eventB;
 		float score;
-		timestamp_ms timestamp;
+		long timestamp;
 	}
 }

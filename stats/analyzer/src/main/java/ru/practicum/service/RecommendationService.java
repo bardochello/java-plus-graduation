@@ -35,7 +35,7 @@ public class RecommendationService {
 
         similarityRepo.findByEventAOrEventB(eventId, eventId)
                 .forEach(e -> {
-                    long other = (e.getEventA() == eventId) ? e.getEventB() : e.getEventA();
+                    long other = (e.getEventA().equals(eventId)) ? e.getEventB() : e.getEventA();
                     if (!interacted.contains(other)) {
                         recList.add(new RecommendedEvent(other, e.getScore()));
                     }
@@ -50,36 +50,50 @@ public class RecommendationService {
         long userId = request.getUserId();
         int maxRes  = request.getMaxResults();
 
+        // Шаг 1: Получить все взаимодействия пользователя, отсортировать по дате, взять последние N
         List<UserAction> all = userActionRepo.findByUserId(userId);
         if (all.isEmpty()) {
             return Collections.emptyList();
         }
 
-        all.sort((a,b) -> b.getLastInteraction().compareTo(a.getLastInteraction()));
+        all.sort((a, b) -> b.getLastInteraction().compareTo(a.getLastInteraction()));
 
-        int min = Math.min(5, all.size());
-        List<UserAction> recent = all.subList(0, min);
+        int recentCount = Math.min(maxRes, all.size());
+        List<UserAction> recent = all.subList(0, recentCount);
 
         Set<Long> interacted = userInteracted(userId);
 
-        Map<Long, Float> bestScoreMap = new HashMap<>();
-        for (UserAction r : recent) {
-            long ev = r.getEventId();
-            List<EventSimilarity> simList = similarityRepo.findByEventAOrEventB(ev, ev);
-            for (EventSimilarity e : simList) {
-                long other = (e.getEventA() == ev) ? e.getEventB() : e.getEventA();
-                if (interacted.contains(other)) {
-                    continue;
+        // Шаг 2: Найти мероприятия, похожие на недавно просмотренные, с которыми пользователь ещё не взаимодействовал
+        // Собираем: кандидат -> список пар (схожесть, оценка_пользователя_для_соседа)
+        // Для вычисления взвешенного среднего KNN: score = Σ(sim_i * userRating_i) / Σ(sim_i)
+        Map<Long, Double> weightedScoreSum = new HashMap<>();
+        Map<Long, Double> simSum = new HashMap<>();
+
+        for (UserAction viewed : recent) {
+            long viewedEventId = viewed.getEventId();
+            double userRating = viewed.getMaxWeight(); // оценка пользователя для этого мероприятия
+
+            List<EventSimilarity> simList = similarityRepo.findByEventAOrEventB(viewedEventId, viewedEventId);
+            for (EventSimilarity sim : simList) {
+                long candidateId = (sim.getEventA().equals(viewedEventId)) ? sim.getEventB() : sim.getEventA();
+                if (interacted.contains(candidateId)) {
+                    continue; // пропускаем уже просмотренные
                 }
-                float oldVal = bestScoreMap.getOrDefault(other, 0f);
-                if (e.getScore() > oldVal) {
-                    bestScoreMap.put(other, e.getScore());
-                }
+                double similarity = sim.getScore();
+
+                // Накапливаем для взвешенного среднего
+                weightedScoreSum.merge(candidateId, similarity * userRating, Double::sum);
+                simSum.merge(candidateId, similarity, Double::sum);
             }
         }
 
-        return bestScoreMap.entrySet().stream()
-                .map(e -> new RecommendedEvent(e.getKey(), e.getValue()))
+        // Шаг 3: Вычисляем предсказанную оценку = взвешенная сумма / сумма схожестей
+        return weightedScoreSum.entrySet().stream()
+                .filter(e -> simSum.getOrDefault(e.getKey(), 0.0) > 0)
+                .map(e -> {
+                    double predictedScore = e.getValue() / simSum.get(e.getKey());
+                    return new RecommendedEvent(e.getKey(), predictedScore);
+                })
                 .sorted(Comparator.comparingDouble(RecommendedEvent::score).reversed())
                 .limit(maxRes)
                 .collect(Collectors.toList());
@@ -95,7 +109,7 @@ public class RecommendationService {
             for (UserAction uae : list) {
                 sum += uae.getMaxWeight();
             }
-            result.add(new RecommendedEvent(e, (float) sum));
+            result.add(new RecommendedEvent(e, sum));
         }
         return result;
     }

@@ -15,7 +15,7 @@ public class UserActionsConsumer {
     private final SimilarityService similarityService;
 
     @KafkaListener(
-            topics = "#{kafkaProperties.consumer.topic}",
+            topics = "${kafka.consumer.topic}",
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeUserAction(UserActionAvro message) {

@@ -19,6 +19,7 @@ public class KafkaProperties {
         private String topic;
         private String keyDeserializer;
         private String valueDeserializer;
+        private String autoOffsetReset;
     }
 
     @Getter
