@@ -1,123 +1,110 @@
 package ru.practicum.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import ru.practicum.config.KafkaProperties;
 import ru.practicum.ewm.stats.avro.ActionTypeAvro;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 
+import java.time.Instant;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @Service
 public class SimilarityService {
 
-    // Map<eventId, Map<userId, weight>> — веса пользователей по мероприятиям
-    private final Map<Long, Map<Long, Double>> weights = new HashMap<>();
-    // Map<eventId, totalWeightSum> — сумма весов всех пользователей для мероприятия
-    private final Map<Long, Double> eventWeightsSum = new HashMap<>();
-    // Map<userId, Set<eventId>> — какие мероприятия посещал каждый пользователь
-    private final Map<Long, Set<Long>> userEvents = new HashMap<>();
-    // Матрица последних отправленных значений схожести (для фильтрации дубликатов)
-    private final MinWeightsMatrix lastSentSimilarity = new MinWeightsMatrix();
+    private final Map<Long, Map<Long, Integer>> weights = new HashMap<>();
+
+    private final Map<Long, Integer> eventWeightsSum = new HashMap<>();
+
+    private final MinWeightsMatrix minWeightsMatrix = new MinWeightsMatrix();
 
     private final KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate;
+    private final KafkaProperties props;
 
-    @Value("${kafka.producer.topic}")
-    private String similarityTopic;
-
-    public SimilarityService(KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate) {
+    public SimilarityService(KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate,
+                             KafkaProperties props) {
         this.kafkaTemplate = kafkaTemplate;
+        this.props = props;
     }
 
     public void processUserAction(UserActionAvro action) {
         long userId  = action.getUserId();
         long eventId = action.getEventId();
-        double newWeight = convertActionType(action.getActionType());
-        // timestamp_ms без javaTimeConversions генерирует long (epoch millis)
-        long timestamp = action.getTimestamp();
+        int newWeight = convertActionType(action.getActionType());
+        long timestampMillis = action.getTimestamp();
+        Instant timestamp = Instant.ofEpochMilli(timestampMillis);
 
-        Map<Long, Double> userMap = weights.computeIfAbsent(eventId, e -> new HashMap<>());
-        double oldWeight = userMap.getOrDefault(userId, 0.0);
+        Map<Long, Integer> userMap = weights.computeIfAbsent(eventId, e -> new HashMap<>());
+        int oldWeight = userMap.getOrDefault(userId, 0);
 
-        // Пропускаем, если вес не увеличился
         if (newWeight <= oldWeight) {
+            log.debug("Обновление не требуется: userId={}, eventId={}, weight={} <= oldWeight={}",
+                    userId, eventId, newWeight, oldWeight);
             return;
         }
 
         userMap.put(userId, newWeight);
 
-        double diff = newWeight - oldWeight;
-        eventWeightsSum.merge(eventId, diff, Double::sum);
+        int oldSum = eventWeightsSum.getOrDefault(eventId, 0);
+        int diff = newWeight - oldWeight;
+        int updatedSum = oldSum + diff;
+        eventWeightsSum.put(eventId, updatedSum);
 
-        Set<Long> eventsForUser = userEvents.computeIfAbsent(userId, u -> new HashSet<>());
-
-        // Пересчитываем схожесть только для пар (eventId, otherEvent),
-        // где текущий пользователь взаимодействовал с ОБОИМИ мероприятиями
-        for (Long otherEvent : eventsForUser) {
-            if (!otherEvent.equals(eventId)) {
-                updatePairSimilarity(eventId, otherEvent, timestamp);
-            }
-        }
-
-        // Регистрируем текущее мероприятие в истории пользователя ПОСЛЕ расчёта
-        eventsForUser.add(eventId);
+        weights.keySet()
+                .stream()
+                .filter(otherEvent -> otherEvent.equals(eventId))
+                .forEach(otherEvent -> updatePairSimilarity(eventId, otherEvent, timestamp));
     }
 
-    private void updatePairSimilarity(long eventA, long eventB, long timestamp) {
+    private void updatePairSimilarity(long eventA, long eventB, Instant timestamp) {
         double sMin = calcSMin(eventA, eventB);
+        minWeightsMatrix.put(eventA, eventB, sMin);
 
-        double sA = eventWeightsSum.getOrDefault(eventA, 0.0);
-        double sB = eventWeightsSum.getOrDefault(eventB, 0.0);
+        double sA = eventWeightsSum.getOrDefault(eventA, 0);
+        double sB = eventWeightsSum.getOrDefault(eventB, 0);
+        if (sA == 0 || sB == 0) {
 
-        if (sMin == 0 || sA == 0 || sB == 0) {
+            log.debug("Обнаружена нулевая сумма (sA={}, sB={}), пропускающая сходство для событий {} и {}",
+                    sA, sB, eventA, eventB);
             return;
         }
 
-        float newSimilarity = (float) (sMin / (Math.sqrt(sA) * Math.sqrt(sB)));
+        float similarity = (float) (sMin / (sA * sB));
 
-        long first  = Math.min(eventA, eventB);
+        long first = Math.min(eventA, eventB);
         long second = Math.max(eventA, eventB);
 
-        // Отправляем только если схожесть изменилась
-        double previousSimilarity = lastSentSimilarity.get(first, second);
-        if (Math.abs(newSimilarity - previousSimilarity) < 1e-9) {
-            return;
-        }
-
-        lastSentSimilarity.put(first, second, newSimilarity);
-
-        EventSimilarityAvro msg = EventSimilarityAvro.newBuilder()
+        EventSimilarityAvro similarityMsg = EventSimilarityAvro.newBuilder()
                 .setEventA(first)
                 .setEventB(second)
-                .setScore(newSimilarity)
+                .setScore(similarity)
                 .setTimestamp(timestamp)
                 .build();
 
-        kafkaTemplate.send(similarityTopic, msg);
-        log.debug("Схожесть изменилась (A={}, B={}) = {} (было {})", first, second, newSimilarity, previousSimilarity);
+        kafkaTemplate.send(props.getProducer().getTopic(), similarityMsg);
+
+        log.debug("Обновлено сходство для (A={}, B={}) => {}", first, second, similarity);
     }
 
     private double calcSMin(long eventA, long eventB) {
-        Map<Long, Double> userMapA = weights.getOrDefault(eventA, Map.of());
-        Map<Long, Double> userMapB = weights.getOrDefault(eventB, Map.of());
+        Map<Long, Integer> userMapA = weights.getOrDefault(eventA, Map.of());
+        Map<Long, Integer> userMapB = weights.getOrDefault(eventB, Map.of());
 
         return userMapA.entrySet().stream()
-                .filter(e -> userMapB.containsKey(e.getKey()))
+                .filter(e -> userMapB.get(e.getKey()) != null)
                 .mapToDouble(e -> Math.min(e.getValue(), userMapB.get(e.getKey())))
                 .sum();
     }
 
-    private double convertActionType(ActionTypeAvro actionType) {
+    private int convertActionType(ActionTypeAvro actionType) {
         return switch (actionType) {
-            case REGISTER -> 0.8;
-            case LIKE     -> 1.0;
-            default       -> 0.4;
+            case REGISTER -> 2;
+            case LIKE -> 3;
+            default -> 1;
         };
     }
 }

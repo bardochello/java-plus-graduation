@@ -3,10 +3,8 @@ package ru.practicum.config;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -16,32 +14,26 @@ import org.springframework.kafka.core.ProducerFactory;
 import ru.practicum.ewm.stats.avro.UserActionAvro;
 import ru.practicum.ewm.stats.avro.EventSimilarityAvro;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
-@EnableConfigurationProperties(KafkaProperties.class)
 public class KafkaConfig {
 
     private final KafkaProperties props;
 
     @Bean
-    @Primary
     public ConsumerFactory<String, UserActionAvro> consumerFactory() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, props.getBootstrapServers());
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, props.getConsumer().getGroupId());
-        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props.getConsumer().getKeyDeserializer());
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props.getConsumer().getValueDeserializer());
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-                props.getConsumer().getAutoOffsetReset() != null
-                        ? props.getConsumer().getAutoOffsetReset() : "latest");
+        final Map<String, Object> config = Map.of(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, props.getBootstrapServers(),
+                ConsumerConfig.GROUP_ID_CONFIG, props.getConsumer().getGroupId(),
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props.getConsumer().getKeyDeserializer(),
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props.getConsumer().getValueDeserializer()
+        );
         return new DefaultKafkaConsumerFactory<>(config);
     }
 
     @Bean
-    @Primary
     public ConcurrentKafkaListenerContainerFactory<String, UserActionAvro> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, UserActionAvro> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
@@ -50,17 +42,16 @@ public class KafkaConfig {
     }
 
     @Bean
-    @Primary
     public ProducerFactory<String, EventSimilarityAvro> producerFactory() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, props.getBootstrapServers());
-        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, props.getProducer().getKeySerializer());
-        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, props.getProducer().getValueSerializer());
+        Map<String, Object> config = Map.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, props.getBootstrapServers(),
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, props.getProducer().getKeySerializer(),
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, props.getProducer().getValueSerializer()
+        );
         return new DefaultKafkaProducerFactory<>(config);
     }
 
     @Bean
-    @Primary
     public KafkaTemplate<String, EventSimilarityAvro> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
