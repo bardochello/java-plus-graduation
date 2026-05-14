@@ -140,7 +140,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users
       SPRING_DATASOURCE_USERNAME: users
       SPRING_DATASOURCE_PASSWORD: users
-      SERVER_PORT: 8083
     depends_on:
       user-db:
         condition: service_healthy
@@ -161,7 +160,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main
       SPRING_DATASOURCE_USERNAME: main
       SPRING_DATASOURCE_PASSWORD: main
-      SERVER_PORT: 8081
     depends_on:
       ewm-db:
         condition: service_healthy
@@ -184,7 +182,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://request-db:5432/requests
       SPRING_DATASOURCE_USERNAME: requests
       SPRING_DATASOURCE_PASSWORD: requests
-      SERVER_PORT: 8082
     depends_on:
       request-db:
         condition: service_healthy
@@ -195,115 +192,116 @@ services:
       event-service:
         condition: service_started
 
-  # ─── Kafka Infrastructure ───────────────────────────────────────────────────
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
-    restart: always
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    healthcheck:
-      test: ["CMD", "cub", "zk-ready", "localhost:2181", "30"]
-      interval: 10s
-      timeout: 15s
-      retries: 10
-      start_period: 30s
+  # ─── Kafka ──────────────────────────────────────────────────────────────────
 
   kafka:
     image: confluentinc/confluent-local:7.4.3
     hostname: kafka
     container_name: kafka
+    restart: unless-stopped
     ports:
       - "9092:9092"
       - "9101:9101"
-    networks:
-      - ewm-net
-    restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
-      KAFKA_PROCESS_ROLES: 'broker, controller'
+      KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
       KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-      CLUSTER_ID: 'K0EA9p0yEe6MkAAAAkKsEg'
+      CLUSTER_ID: 'K0EA9p0yEe6MkAAAAkKsEg=='
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   kafka-init-topics:
     image: confluentinc/confluent-local:7.4.3
     container_name: kafka-init-topics
     depends_on:
-      - kafka
-    networks:
-      - ewm-net
-    command: "bash -c \
-                  'kafka-topics --create --topic stats.user-actions.v1 \
-                               --partitions 1 --replication-factor 1 --if-not-exists \
-                               --bootstrap-server kafka:29092 && \
-                  kafka-topics --create --topic stats.events-similarity.v1 \
-                               --partitions 1 --replication-factor 1 --if-not-exists \
-                               --bootstrap-server kafka:29092'"
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+        kafka-topics --create --topic stats.user-actions.v1
+                     --partitions 1 --replication-factor 1 --if-not-exists
+                     --bootstrap-server kafka:29092 &&
+        kafka-topics --create --topic stats.events-similarity.v1
+                     --partitions 1 --replication-factor 1 --if-not-exists
+                     --bootstrap-server kafka:29092
+      "
     init: true
 
   # ─── Stats Microservices ────────────────────────────────────────────────────
 
   collector:
-    build: stats/collector
-    container_name: ewm-collector
+    build:
+      context: .
+      dockerfile: stats/collector/Dockerfile
+    container_name: collector
+    restart: always
+    ports:
+      - "9090:9090"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: collector
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
+      discovery-server:
+        condition: service_healthy
       config-server:
         condition: service_healthy
-    networks:
-      - ewm-net
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
-      - SERVER_PORT=8085
-    healthcheck:
-      test: "curl --fail --silent localhost:8085/actuator/health | grep UP || exit 1"
-      timeout: 5s
-      interval: 15s
-      retries: 10
+      kafka:
+        condition: service_healthy
 
   aggregator:
-    build: stats/aggregator
-    container_name: ewm-aggregator
+    build:
+      context: .
+      dockerfile: stats/aggregator/Dockerfile
+    container_name: aggregator
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: aggregator
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
+      discovery-server:
+        condition: service_healthy
       config-server:
         condition: service_healthy
-    networks:
-      - ewm-net
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
-      - SERVER_PORT=8086
-    healthcheck:
-      test: "curl --fail --silent localhost:8086/actuator/health | grep UP || exit 1"
-      timeout: 5s
-      interval: 15s
-      retries: 10
+      kafka:
+        condition: service_healthy
 
   analyzer:
-    build: stats/analyzer
-    container_name: ewm-analyzer
+    build:
+      context: .
+      dockerfile: stats/analyzer/Dockerfile
+    container_name: analyzer
+    restart: always
+    ports:
+      - "9091:9091"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: analyzer
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://analyzer-db:5432/analyzer
+      SPRING_DATASOURCE_USERNAME: analyzer
+      SPRING_DATASOURCE_PASSWORD: analyzer
     depends_on:
       analyzer-db:
         condition: service_healthy
+      discovery-server:
+        condition: service_healthy
       config-server:
         condition: service_healthy
-    networks:
-      - ewm-net
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://analyzer-db:5432/ewm-analyzer
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=root
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
-      - SERVER_PORT=8087
-    healthcheck:
-      test: "curl --fail --silent localhost:8087/actuator/health | grep UP || exit 1"
-      timeout: 5s
-      interval: 15s
-      retries: 10
+      kafka:
+        condition: service_healthy
 
 volumes:
   ewm-data:
