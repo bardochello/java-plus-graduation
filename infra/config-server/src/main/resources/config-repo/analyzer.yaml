@@ -13,15 +13,15 @@ grpc:
 kafka:
   bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   user-actions-consumer:
+    group-id: analyzer-user-actions
     topic: stats.user-actions.v1
-    group-id: analyzer-user-actions-group
     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    value-deserializer: ru.practicum.config.UserActionAvroDeserializer
+    value-deserializer: ru.practicum.AvroDeserializer
   events-similarity-consumer:
-    topic: stats.events-similarity.v1
-    group-id: analyzer-events-similarity-group
-    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    value-deserializer: ru.practicum.config.EventSimilarityAvroDeserializer
+      group-id: analyzer-events-sim
+      topic: stats.events-similarity.v1
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: ru.practicum.AvroDeserializer
 
 spring:
   datasource:

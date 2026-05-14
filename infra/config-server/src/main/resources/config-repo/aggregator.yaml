@@ -4,15 +4,14 @@ server:
 kafka:
   bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   consumer:
-    group-id: aggregator-group
     topic: stats.user-actions.v1
+    group-id: aggregator-actions
     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    value-deserializer: ru.practicum.config.UserActionAvroDeserializer
-    auto-offset-reset: latest
+    value-deserializer: ru.practicum.AvroDeserializer
   producer:
     topic: stats.events-similarity.v1
     key-serializer: org.apache.kafka.common.serialization.StringSerializer
-    value-serializer: ru.practicum.config.EventSimilarityAvroSerializer
+    value-serializer: ru.practicum.AvroSerializer
 
 spring:
   kafka:
