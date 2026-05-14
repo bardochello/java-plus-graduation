@@ -1,14 +1,12 @@
 package ru.practicum.event.controller.public_;
 
-import dto.EndpointHitDto;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.StatsClient;
 import ru.practicum.event.dto.EventFullDto;
 import ru.practicum.event.dto.EventShortDto;
 import ru.practicum.event.service.EventService;
@@ -19,6 +17,12 @@ import java.util.List;
 
 /**
  * Публичный контроллер для операций с событиями.
+ *
+ * Изменения по ТЗ:
+ * - GET /events          — больше НЕ отправляет VIEW
+ * - GET /events/{id}     — отправляет VIEW через CollectorClient (userId из заголовка)
+ * - GET /events/recommendations — новый эндпоинт рекомендаций
+ * - PUT /events/{eventId}/like  — новый эндпоинт лайка
  */
 @Validated
 @RequestMapping("/events")
@@ -26,10 +30,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EventPublicController {
 
-    private static final String APPLICATION = "main-service";
     private final EventService eventService;
-    private final StatsClient statsClient;
 
+    /** GET /events — список событий без отправки статистики. */
     @GetMapping
     public List<EventShortDto> getEvents(
             @RequestParam(required = false) String text,
@@ -42,8 +45,7 @@ public class EventPublicController {
             @RequestParam(defaultValue = "false") Boolean onlyAvailable,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") @PositiveOrZero int from,
-            @RequestParam(defaultValue = "10") @Positive int size,
-            HttpServletRequest request) {
+            @RequestParam(defaultValue = "10") @Positive int size) {
 
         EventGetPublicParam param = EventGetPublicParam.builder()
                 .text(text)
@@ -57,42 +59,41 @@ public class EventPublicController {
                 .size(size)
                 .build();
 
-        List<EventShortDto> events = eventService.getEventsByPublic(param);
-
-        // Используем новый метод addHit
-        statsClient.addHit(EndpointHitDto.builder()
-                .app(APPLICATION)
-                .uri(request.getRequestURI())
-                .ip(request.getRemoteAddr())
-                .timestamp(LocalDateTime.now())
-                .build());
-
-        return events;
-    }
-
-    @GetMapping("/{id}")
-    public EventFullDto getEvent(@PathVariable @Positive long id,
-                                 HttpServletRequest request) {
-
-        try {
-            statsClient.addHit(EndpointHitDto.builder()
-                    .app(APPLICATION)
-                    .uri(request.getRequestURI())
-                    .ip(request.getRemoteAddr())
-                    .timestamp(LocalDateTime.now())
-                    .build());
-        } catch (Exception ignored) {
-        }
-
-        return eventService.getEventByPublic(id);
+        // По ТЗ: при GET /events информацию о просмотре НЕ отправляем
+        return eventService.getEventsByPublic(param);
     }
 
     /**
-     * Топ событий по количеству лайков (из microservices).
+     * GET /events/recommendations — персональные рекомендации мероприятий для пользователя.
+     * Идентификатор пользователя из заголовка X-EWM-USER-ID.
      */
-    @GetMapping("/top")
-    public List<EventShortDto> getTopByLikes(
-            @RequestParam(defaultValue = "10") int count) {
-        return eventService.getTopByLikes(count);
+    @GetMapping("/recommendations")
+    public List<EventShortDto> getRecommendations(
+            @RequestHeader("X-EWM-USER-ID") long userId,
+            @RequestParam(defaultValue = "10") @Positive int maxResults) {
+        return eventService.getRecommendations(userId, maxResults);
+    }
+
+    /**
+     * GET /events/{id} — детали события.
+     * По ТЗ: отправляем VIEW в Collector с userId из заголовка.
+     */
+    @GetMapping("/{id}")
+    public EventFullDto getEvent(
+            @PathVariable @Positive long id,
+            @RequestHeader("X-EWM-USER-ID") long userId) {
+        return eventService.getEventByPublic(id, userId);
+    }
+
+    /**
+     * PUT /events/{eventId}/like — пользователь лайкает мероприятие.
+     * Пользователь может лайкать только посещённые мероприятия (иначе 400).
+     */
+    @PutMapping("/{eventId}/like")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addLike(
+            @PathVariable @Positive long eventId,
+            @RequestHeader("X-EWM-USER-ID") long userId) {
+        eventService.addLike(userId, eventId);
     }
 }

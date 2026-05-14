@@ -24,10 +24,15 @@ public interface RequestRepository extends JpaRepository<Request, Long> {
 
     List<Request> findByIdInAndEventId(List<Long> requestIds, Long eventId);
 
+    /** Подтверждённые заявки на мероприятие — для проверки факта посещения. */
+    List<Request> findByEventIdAndStatus(Long eventId, Status status);
+
     @Query("SELECT r FROM Request r WHERE r.eventId IN :eventIds AND r.status = :status")
     List<Request> findAllByEventIdInAndStatus(@Param("eventIds") Collection<Long> eventIds,
                                               @Param("status") Status status);
 
-    @Query("SELECT r.eventId, COUNT(r.id) FROM Request r WHERE r.eventId IN :eventIds AND r.status = 'CONFIRMED' GROUP BY r.eventId")
+    @Query("SELECT r.eventId, COUNT(r.id) FROM Request r " +
+            "WHERE r.eventId IN :eventIds AND r.status = 'CONFIRMED' " +
+            "GROUP BY r.eventId")
     List<Object[]> countConfirmedByEventIds(@Param("eventIds") List<Long> eventIds);
 }

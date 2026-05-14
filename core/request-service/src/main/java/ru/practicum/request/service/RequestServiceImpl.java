@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.CollectorClient;
 import ru.practicum.dto.event.EventInternalDto;
 import ru.practicum.request.dto.*;
 import ru.practicum.request.exception.ConflictResource;
@@ -15,10 +16,9 @@ import ru.practicum.request.repository.RequestRepository;
 import ru.practicum.request.utill.Status;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
 
 @Slf4j
 @Service
@@ -28,6 +28,7 @@ public class RequestServiceImpl implements RequestService {
 
     private final RequestRepository requestRepository;
     private final EventServiceClient eventServiceClient;
+    private final CollectorClient collectorClient;
 
     @Override
     @Transactional
@@ -71,7 +72,13 @@ public class RequestServiceImpl implements RequestService {
                 .status(status)
                 .build();
 
-        return RequestMapper.mapToDto(requestRepository.save(request));
+        Request saved = requestRepository.save(request);
+
+        // По ТЗ: при регистрации на мероприятие отправляем REGISTER в Collector
+        collectorClient.sendUserAction(userId, eventId, ActionTypeProto.ACTION_REGISTER);
+        log.info("Sent REGISTER to Collector: userId={}, eventId={}", userId, eventId);
+
+        return RequestMapper.mapToDto(saved);
     }
 
     @Override
@@ -96,40 +103,30 @@ public class RequestServiceImpl implements RequestService {
     public EventRequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId,
                                                               EventRequestStatusUpdateRequest updateRequest) {
         EventInternalDto event = getEventOrThrow(eventId);
-
         if (!event.getInitiatorId().equals(userId)) {
             throw new NotFoundResource("Событие " + eventId + " не найдено или недоступно пользователю " + userId);
         }
-
         int limit = event.getParticipantLimit() != null ? event.getParticipantLimit() : 0;
-
         List<Long> requestIds = updateRequest.getRequestIds();
         if (requestIds == null || requestIds.isEmpty()) {
             return new EventRequestStatusUpdateResult(List.of(), List.of());
         }
-
         List<Request> requests = requestRepository.findByIdInAndEventId(requestIds, eventId);
         if (requests.size() != requestIds.size()) {
             throw new NotFoundResource("Не все заявки найдены для события " + eventId);
         }
-
         for (Request req : requests) {
             if (!Status.PENDING.equals(req.getStatus())) {
                 throw new ConflictResource("Можно изменять статус только у заявок в состоянии PENDING");
             }
         }
-
         Long countResult = requestRepository.countByEventIdAndStatus(eventId, Status.CONFIRMED);
         long currentConfirmed = countResult != null ? countResult : 0L;
-
-        if (Status.CONFIRMED.equals(updateRequest.getStatus())
-                && limit > 0 && currentConfirmed >= limit) {
+        if (Status.CONFIRMED.equals(updateRequest.getStatus()) && limit > 0 && currentConfirmed >= limit) {
             throw new ConflictResource("The participant limit has been reached");
         }
-
         List<ParticipationRequestDto> confirmedList = new ArrayList<>();
-        List<ParticipationRequestDto> rejectedList = new ArrayList<>();
-
+        List<ParticipationRequestDto> rejectedList  = new ArrayList<>();
         for (Request req : requests) {
             if (Status.CONFIRMED.equals(updateRequest.getStatus())) {
                 if (limit > 0 && currentConfirmed >= limit) {
@@ -145,7 +142,6 @@ public class RequestServiceImpl implements RequestService {
                 rejectedList.add(RequestMapper.mapToDto(requestRepository.save(req)));
             }
         }
-
         if (limit > 0 && currentConfirmed >= limit) {
             requestRepository.findByEventId(eventId).stream()
                     .filter(r -> Status.PENDING.equals(r.getStatus()))
@@ -154,7 +150,6 @@ public class RequestServiceImpl implements RequestService {
                         requestRepository.save(r);
                     });
         }
-
         return EventRequestStatusUpdateResult.builder()
                 .confirmedRequests(confirmedList)
                 .rejectedRequests(rejectedList)
@@ -172,32 +167,36 @@ public class RequestServiceImpl implements RequestService {
     @Transactional
     public List<ParticipationRequestDto> getRequestsByEventIdIn(List<Long> eventIds) {
         return requestRepository.findAllByEventIdInAndStatus(eventIds, Status.CONFIRMED)
-                .stream()
-                .map(RequestMapper::mapToDto)
-                .toList();
+                .stream().map(RequestMapper::mapToDto).toList();
     }
 
     @Override
     @Transactional
     public Map<Long, Long> countConfirmedByEventIds(List<Long> eventIds) {
-        if (eventIds == null || eventIds.isEmpty()) {
-            return Map.of();
-        }
+        if (eventIds == null || eventIds.isEmpty()) return Map.of();
         List<Object[]> results = requestRepository.countConfirmedByEventIds(eventIds);
         Map<Long, Long> confirmedMap = new HashMap<>();
         for (Object[] row : results) {
-            Long eventId = (Long) row[0];
+            Long eId   = (Long) row[0];
             Long count = row[1] != null ? ((Number) row[1]).longValue() : 0L;
-            confirmedMap.put(eventId, count);
+            confirmedMap.put(eId, count);
         }
         return confirmedMap;
     }
 
+    /**
+     * Возвращает подтверждённые заявки на мероприятие.
+     * Используется event-service для проверки факта посещения при лайке.
+     */
+    @Override
+    public List<ParticipationRequestDto> getConfirmedRequestsByEventId(Long eventId) {
+        return requestRepository.findByEventIdAndStatus(eventId, Status.CONFIRMED)
+                .stream().map(RequestMapper::mapToDto).toList();
+    }
+
     private EventInternalDto getEventOrThrow(Long eventId) {
         EventInternalDto event = eventServiceClient.getEventById(eventId);
-        if (event == null) {
-            throw new NotFoundResource("Event with id=" + eventId + " not found");
-        }
+        if (event == null) throw new NotFoundResource("Event with id=" + eventId + " not found");
         return event;
     }
 }

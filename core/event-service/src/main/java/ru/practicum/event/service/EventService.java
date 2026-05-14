@@ -23,15 +23,14 @@ public interface EventService {
 
     List<EventShortDto> getEventsByPublic(EventGetPublicParam param);
 
-    EventFullDto getEventByPublic(long eventId);
+    /** userId нужен для отправки VIEW в Collector. */
+    EventFullDto getEventByPublic(long eventId, long userId);
 
     Event getEventById(long eventId);
 
-    // ===== Likes =====
+    /** GET /events/recommendations — персональные рекомендации. */
+    List<EventShortDto> getRecommendations(long userId, int maxResults);
 
-    EventShortDto addLike(long userId, long eventId);
-
-    void deleteLike(long userId, long eventId);
-
-    List<EventShortDto> getTopByLikes(int count);
+    /** PUT /events/{eventId}/like — лайк мероприятия (только для посетивших). */
+    void addLike(long userId, long eventId);
 }

@@ -64,24 +64,6 @@ services:
       retries: 5
       start_period: 30s
 
-  stats-db:
-    image: postgres:16-alpine
-    container_name: stats-db
-    restart: always
-    ports:
-      - "9032:5432"
-    environment:
-      POSTGRES_DB: stats
-      POSTGRES_USER: stats
-      POSTGRES_PASSWORD: stats
-    volumes:
-      - stats-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stats -d stats"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   ewm-db:
     image: postgres:16-alpine
     container_name: ewm-db
@@ -130,28 +112,21 @@ services:
       timeout: 5s
       retries: 5
 
-  stats-server:
-    build:
-      context: .
-      dockerfile: stats/stats-server/Dockerfile
-    container_name: stats-server
+  analyzer-db:
+    image: postgres:16-alpine
+    container_name: analyzer-db
     restart: always
-    ports:
-      - "9090:9090"
     environment:
-      CONFIG_SERVER_URL: http://config-server:8888
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
-      SPRING_DATASOURCE_USERNAME: stats
-      SPRING_DATASOURCE_PASSWORD: stats
-      SERVER_PORT: 9090
-    depends_on:
-      stats-db:
-        condition: service_healthy
-      discovery-server:
-        condition: service_healthy
-      config-server:
-        condition: service_healthy
+      POSTGRES_DB: analyzer
+      POSTGRES_USER: analyzer
+      POSTGRES_PASSWORD: analyzer
+    volumes:
+      - analyzer-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analyzer -d analyzer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   user-service:
     build:
@@ -165,7 +140,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/users
       SPRING_DATASOURCE_USERNAME: users
       SPRING_DATASOURCE_PASSWORD: users
-      SERVER_PORT: 8083
     depends_on:
       user-db:
         condition: service_healthy
@@ -186,7 +160,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/main
       SPRING_DATASOURCE_USERNAME: main
       SPRING_DATASOURCE_PASSWORD: main
-      SERVER_PORT: 8081
     depends_on:
       ewm-db:
         condition: service_healthy
@@ -194,8 +167,6 @@ services:
         condition: service_healthy
       config-server:
         condition: service_healthy
-      stats-server:
-        condition: service_started
       user-service:
         condition: service_started
 
@@ -211,7 +182,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://request-db:5432/requests
       SPRING_DATASOURCE_USERNAME: requests
       SPRING_DATASOURCE_PASSWORD: requests
-      SERVER_PORT: 8082
     depends_on:
       request-db:
         condition: service_healthy
@@ -222,8 +192,119 @@ services:
       event-service:
         condition: service_started
 
+  # ─── Kafka ──────────────────────────────────────────────────────────────────
+
+  kafka:
+    image: confluentinc/confluent-local:7.4.3
+    hostname: kafka
+    container_name: kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      CLUSTER_ID: 'K0EA9p0yEe6MkAAAAkKsEg=='
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  kafka-init-topics:
+    image: confluentinc/confluent-local:7.4.3
+    container_name: kafka-init-topics
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >
+      bash -c "
+        kafka-topics --create --topic stats.user-actions.v1
+                     --partitions 1 --replication-factor 1 --if-not-exists
+                     --bootstrap-server kafka:29092 &&
+        kafka-topics --create --topic stats.events-similarity.v1
+                     --partitions 1 --replication-factor 1 --if-not-exists
+                     --bootstrap-server kafka:29092
+      "
+    init: true
+
+  # ─── Stats Microservices ────────────────────────────────────────────────────
+
+  collector:
+    build:
+      context: .
+      dockerfile: stats/collector/Dockerfile
+    container_name: collector
+    restart: always
+    ports:
+      - "9090:9090"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: collector
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  aggregator:
+    build:
+      context: .
+      dockerfile: stats/aggregator/Dockerfile
+    container_name: aggregator
+    restart: always
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: aggregator
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  analyzer:
+    build:
+      context: .
+      dockerfile: stats/analyzer/Dockerfile
+    container_name: analyzer
+    restart: always
+    ports:
+      - "9091:9091"
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: analyzer
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://analyzer-db:5432/analyzer
+      SPRING_DATASOURCE_USERNAME: analyzer
+      SPRING_DATASOURCE_PASSWORD: analyzer
+    depends_on:
+      analyzer-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
 volumes:
-  stats-data:
   ewm-data:
   request-data:
   user-data:
+  analyzer-data:
