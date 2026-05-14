@@ -27,7 +27,10 @@ public class KafkaConfig {
         config.put(ConsumerConfig.GROUP_ID_CONFIG, props.getUserActionsConsumer().getGroupId());
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, props.getUserActionsConsumer().getKeyDeserializer());
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, props.getUserActionsConsumer().getValueDeserializer());
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        config.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);
+        config.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 50);
+        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 10);
         return new DefaultKafkaConsumerFactory<>(config);
     }
 
@@ -46,7 +49,10 @@ public class KafkaConfig {
         config.put(ConsumerConfig.GROUP_ID_CONFIG, props.getEventsSimilarityConsumer().getGroupId());
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, getClassFromString(props.getEventsSimilarityConsumer().getKeyDeserializer()));
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, getClassFromString(props.getEventsSimilarityConsumer().getValueDeserializer()));
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        config.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);
+        config.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 50);
+        config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 10);
         return new DefaultKafkaConsumerFactory<>(config);
     }
 
